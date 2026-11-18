@@ -7,10 +7,24 @@ import HistoryNav from '../components/HistoryNav.jsx'
 import PastExercise from '../components/PastExercise.jsx'
 import ChoiceStage from '../components/stages/ChoiceStage.jsx'
 import Tooltip from '../components/Tooltip.jsx'
+import SessionOverview, { examOverviewRows } from '../components/SessionOverview.jsx'
 
 // Mock exam, without touching progress. exam.mode is 'write' (stage 4: recall with no help) or
 // 'choice' (multiple choice; exam.options[key] are the option keys for each question).
-export default function ExamScreen({ exam, bankByKey, skippedKey, onAnswer, onSkip, onBackToSkipped, onQuit }) {
+export default function ExamScreen({
+  exam,
+  bankByKey,
+  skippedKey,
+  onAnswer,
+  onSkip,
+  onBackToSkipped,
+  onJump,
+  onToggle,
+  onDelete,
+  onQuit,
+  deletedCount,
+  onOpenDeleted,
+}) {
   const { t } = useI18n()
   const [position, setPosition] = useState(null)
   const question = bankByKey.get(exam.keys[exam.index])
@@ -33,6 +47,24 @@ export default function ExamScreen({ exam, bankByKey, skippedKey, onAnswer, onSk
       <div className="flex items-center justify-between gap-2">
         <span className="text-sm opacity-70">{t('exam.progress', { n: exam.index + 1, total: exam.keys.length })}</span>
         <div className="flex flex-wrap items-center justify-end gap-1">
+          <SessionOverview
+            rows={examOverviewRows(exam)}
+            bankByKey={bankByKey}
+            title={t('overview.examTitle')}
+            onJump={(key) => {
+              setPosition(null)
+              onJump(key)
+            }}
+            onView={setPosition}
+            onCurrent={() => setPosition(null)}
+            onToggle={onToggle}
+            onDelete={(key) => {
+              setPosition(null)
+              onDelete(key)
+            }}
+            deletedCount={deletedCount}
+            onOpenDeleted={onOpenDeleted}
+          />
           {skippedKey && (
             <Tooltip text={t('study.backToSkippedHelp', { id: bankByKey.get(skippedKey)?.id ?? '' })} side="bottom">
               <button type="button" className="btn btn-outline btn-sm" onClick={onBackToSkipped} disabled={past !== null}>

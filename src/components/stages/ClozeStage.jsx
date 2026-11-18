@@ -70,7 +70,7 @@ export default function ClozeStage({ question, outcomeFor, practice, onDone, onR
   const revealedCount = hints.filter((h) => h >= WHOLE_WORD).length
   const hintsUsed = hints.reduce((a, h) => a + h, 0)
   const result = checked ? (checked.gaveUp ? 'failed' : resultFor(correctCount, blanks.length)) : null
-  const record = checked && { result, response: { values, states: checked.states } }
+  const record = checked && { result, response: { values, states: checked.states, hintsUsed } }
 
   const detail = checked && !checked.gaveUp
     ? [

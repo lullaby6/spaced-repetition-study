@@ -2,9 +2,10 @@
 import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
 import { clozeToRaw, missingFields, parseBank, parseCloze, serializeBank } from '../src/lib/parser.js'
-import { MAX_LEARNING, recordResult, startSession, countStatuses, resetQuestion, lastStudiedKey, removeFromSession, skipCurrent, lastSkipped, backToSkipped } from '../src/lib/queue.js'
+import { MAX_LEARNING, recordResult, startSession, countStatuses, resetQuestion, lastStudiedKey, removeFromSession, skipCurrent, lastSkipped, backToSkipped, jumpTo, excludeFromSession, includeInSession } from '../src/lib/queue.js'
 import { isQuestionActive } from '../src/lib/bank.js'
 import { buildChoice, CHOICE_OPTIONS, optionsToEliminate } from '../src/lib/exam.js'
+import { makeTrashId, restoreFromTrash, trashAllBanks, trashBank, trashProgress, trashQuestion } from '../src/lib/trash.js'
 import { compareCopy, guessLanguage, isBlankCorrect, keywordRanges, suggestKeyPoints } from '../src/lib/text.js'
 
 // Voice language guess
@@ -106,9 +107,30 @@ assert.ok(next - Date.now() > 2.9 * 24 * 3600 * 1000, 'next review in 3 days')
   assert.deepEqual(backAgain.queue.slice(0, 3).map((i) => i.key), ['1', '2', '3'])
   assert.equal(lastSkipped(backAgain), null)
   assert.equal(backToSkipped(backAgain), backAgain, 'nothing to go back to')
+  // Jumping to any waiting question.
+  const jumped = jumpTo(s, '4')
+  assert.deepEqual(jumped.queue.slice(0, 2).map((i) => i.key), ['4', '1'])
+  assert.equal(jumpTo(s, '1'), s, 'already current')
+  assert.equal(jumpTo(s, '99'), s, 'not in the queue')
   // Answering a skipped one forgets it.
   const answered = recordResult(back, p, 'passed')
   assert.ok(!answered.session.skipped.includes('2'))
+}
+
+// Turning a question off and on again for this session only.
+{
+  let { session: s, progress: p } = startSession(bank, {}, settings)
+  ;({ session: s, progress: p } = recordResult(s, p, 'passed')) // q1 → waits at stage 2
+  const off = excludeFromSession(s, p, '1')
+  assert.ok(!off.queue.some((i) => i.key === '1'))
+  assert.deepEqual(off.excluded, [{ key: '1', stage: 2, kind: 'learn' }])
+  assert.ok(off.queue.some((i) => i.key === '7'), 'slot refilled')
+  assert.equal(p['1'].stage, 2, 'progress untouched')
+  const on = includeInSession(off, '1')
+  assert.deepEqual(on.queue.at(-1), { key: '1', stage: 2, kind: 'learn' }, 'back at the same stage')
+  assert.deepEqual(on.excluded, [])
+  const offPending = excludeFromSession(s, p, '10') // still in the list of new questions
+  assert.ok(!offPending.pendingNew.includes('10') && offPending.excluded[0].key === '10')
 }
 
 // Questions waiting in the queue stay "new" until they are first answered.
@@ -174,6 +196,59 @@ assert.ok(next - Date.now() > 2.9 * 24 * 3600 * 1000, 'next review in 3 days')
   }
   assert.equal(buildChoice(pool[0], pool.slice(0, 2)).length, 2, 'small banks give fewer options')
   assert.deepEqual(optionsToEliminate(['a', 'b'], 'a'), [], 'never below two options')
+}
+
+// Trash: nothing is lost; banks, questions and progress come back.
+{
+  const make = (id, name) => ({ id, name, questions: bank.slice(0, 3), warnings: [], progress: {}, settings, session: null, disabledTopics: [] })
+  let lib = { banks: [make('A', 'a.md'), make('B', 'b.md')], activeId: 'A', trash: [] }
+  // a question with progress, in the current session
+  let { session: s, progress: p } = startSession(lib.banks[0].questions, {}, settings)
+  ;({ session: s, progress: p } = recordResult(s, p, 'passed'))
+  lib.banks[0] = { ...lib.banks[0], progress: p, session: s }
+
+  const tq = makeTrashId()
+  lib = trashQuestion(lib, lib.banks[0], '1', tq)
+  lib.banks[0] = { ...lib.banks[0], questions: lib.banks[0].questions.filter((q) => q.key !== '1'), session: removeFromSession(s, p, ['1']) }
+  const r1 = restoreFromTrash(lib, tq)
+  assert.equal(r1.error, null)
+  const back = r1.library.banks[0]
+  assert.deepEqual(back.questions.map((q) => q.key), ['1', '2', '3'], 'same place')
+  assert.equal(back.progress['1'].stage, 2, 'with its progress')
+  assert.ok(back.session.queue.some((i) => i.key === '1' && i.stage === 2), 'back in the session')
+  assert.equal(r1.library.trash.length, 0)
+
+  // Several deleted, restored in another order: they still end up in number order.
+  {
+    let l = r1.library
+    const bankA = () => l.banks.find((b) => b.id === 'A')
+    const del = (key, tid) => {
+      l = trashQuestion(l, bankA(), key, tid)
+      l = { ...l, banks: l.banks.map((b) => (b.id === 'A' ? { ...b, questions: b.questions.filter((q) => q.key !== key) } : b)) }
+    }
+    del('2', 'd2')
+    del('1', 'd1')
+    l = restoreFromTrash(l, 'd2').library // 2 first, then 1
+    l = restoreFromTrash(l, 'd1').library
+    assert.deepEqual(bankA().questions.map((q) => q.key), ['1', '2', '3'], 'number order after restoring in any order')
+  }
+
+  // progress reset and restored
+  const tp = makeTrashId()
+  let lib2 = trashProgress(r1.library, back, null, tp)
+  lib2 = { ...lib2, banks: lib2.banks.map((b) => (b.id === 'A' ? { ...b, progress: {} } : b)) }
+  assert.equal(restoreFromTrash(lib2, tp).library.banks[0].progress['1'].stage, 2)
+  assert.equal(trashProgress(lib2, lib2.banks[0], null).trash.length, lib2.trash.length, 'nothing to keep when there is no progress')
+
+  // bank deleted and restored; a question of a deleted bank can't come back until the bank does
+  const tb = makeTrashId()
+  const lib3 = trashBank(trashQuestion(lib2, lib2.banks[1], '2', 'tq2'), 'B', tb)
+  assert.deepEqual(lib3.banks.map((b) => b.id), ['A'])
+  assert.equal(restoreFromTrash(lib3, 'tq2').error, 'bankMissing')
+  const r3 = restoreFromTrash(lib3, tb)
+  assert.equal(r3.library.activeId, 'B')
+  assert.equal(r3.library.banks.length, 2)
+  assert.equal(trashAllBanks(r3.library).length, r3.library.trash.length + 2)
 }
 
 // Editing: a bank written back to .md parses to the same questions.

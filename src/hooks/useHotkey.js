@@ -3,6 +3,9 @@ import { createContext, useContext, useEffect, useRef } from 'react'
 // Lets a screen keep an exercise mounted (e.g. while browsing history) without its shortcuts firing.
 export const HotkeysActiveContext = createContext(true)
 
+// Exercise shortcuts are paused while a modal dialog is open on top.
+const modalOpen = () => !!document.querySelector('dialog[open]')
+
 // Alt + letter shortcut (by physical key, e.g. 'KeyP'), usable while typing in a text field.
 export function useAltShortcut(code, handler, enabled = true) {
   const ref = useRef(handler)
@@ -12,7 +15,7 @@ export function useAltShortcut(code, handler, enabled = true) {
   useEffect(() => {
     if (!active) return undefined
     const onKeyDown = (e) => {
-      if (!e.altKey || e.ctrlKey || e.metaKey || e.code !== code) return
+      if (!e.altKey || e.ctrlKey || e.metaKey || e.code !== code || modalOpen()) return
       e.preventDefault()
       ref.current(e)
     }
@@ -30,7 +33,7 @@ export function useDigitHotkey(handler, enabled = true) {
   useEffect(() => {
     if (!active) return undefined
     const onKeyDown = (e) => {
-      if (e.altKey || e.ctrlKey || e.metaKey || !/^Digit[1-9]$/.test(e.code)) return
+      if (e.altKey || e.ctrlKey || e.metaKey || !/^Digit[1-9]$/.test(e.code) || modalOpen()) return
       const tag = e.target?.tagName
       if (tag === 'TEXTAREA' || tag === 'INPUT' || tag === 'SELECT') return
       e.preventDefault()
@@ -51,7 +54,7 @@ export function useEnterHotkey(handler, enabled = true) {
   useEffect(() => {
     if (!active) return undefined
     const onKeyDown = (e) => {
-      if (e.key !== 'Enter' || e.shiftKey || e.isComposing) return
+      if (e.key !== 'Enter' || e.shiftKey || e.isComposing || modalOpen()) return
       const tag = e.target?.tagName
       const withModifier = e.ctrlKey || e.metaKey
       if (!withModifier && (tag === 'TEXTAREA' || tag === 'INPUT' || tag === 'BUTTON' || tag === 'SELECT')) return

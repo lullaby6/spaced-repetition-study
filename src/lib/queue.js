@@ -174,19 +174,24 @@ export function lastSkipped(session) {
   return [...(session?.skipped ?? [])].reverse().find((k) => queued.has(k)) ?? null
 }
 
-// Brings the last skipped exercise back to the front; the current one becomes the next.
-export function backToSkipped(session) {
-  const key = lastSkipped(session)
-  if (!key) return session
-  const index = session.queue.findIndex((i, n) => n > 0 && i.key === key)
+// Brings a waiting exercise of question `key` to the front; the current one becomes the next.
+export function jumpTo(session, key) {
+  const index = session?.queue.findIndex((i, n) => n > 0 && i.key === key) ?? -1
+  if (index < 1) return session
   const queue = [...session.queue]
   const [item] = queue.splice(index, 1)
   return {
     ...session,
     queue: [item, ...queue],
-    skipped: session.skipped.filter((k) => k !== key),
+    skipped: (session.skipped ?? []).filter((k) => k !== key),
     counter: session.counter + 1,
   }
+}
+
+// Brings the last skipped exercise back to the front.
+export function backToSkipped(session) {
+  const key = lastSkipped(session)
+  return key ? jumpTo(session, key) : session
 }
 
 // Puts one question back to "new". If it was in the current session it starts over there (it goes
@@ -218,7 +223,35 @@ export function removeFromSession(session, progress, keys) {
     pendingNew: session.pendingNew.filter((k) => !gone.has(k)),
   }
   const r = refill(trimmed, progress)
-  return r.session.queue.length ? r.session : null
+  // A new counter makes the screen show a fresh exercise if the current one was removed.
+  return r.session.queue.length ? { ...r.session, counter: session.counter + 1 } : null
+}
+
+// Turns a question off for this session only: it leaves the queue (and the list of new questions to
+// come) but is kept in `excluded` so it can be turned back on. The bank and progress are untouched.
+// Returns null when nothing is left to study.
+export function excludeFromSession(session, progress, key) {
+  if (!session) return session
+  const item =
+    session.queue.find((i) => i.key === key) ?? (session.pendingNew.includes(key) ? { key, stage: 1, kind: 'learn' } : null)
+  if (!item) return session
+  const trimmed = {
+    ...session,
+    queue: session.queue.filter((i) => i.key !== key),
+    pendingNew: session.pendingNew.filter((k) => k !== key),
+    skipped: (session.skipped ?? []).filter((k) => k !== key),
+    excluded: [...(session.excluded ?? []).filter((i) => i.key !== key), item],
+  }
+  const r = refill(trimmed, progress)
+  return r.session.queue.length ? { ...r.session, counter: session.counter + 1 } : null
+}
+
+// Turns a question excluded with excludeFromSession back on: it goes back to the end of the queue,
+// at the stage it was at.
+export function includeInSession(session, key) {
+  const item = session?.excluded?.find((i) => i.key === key)
+  if (!item) return session
+  return { ...session, queue: [...session.queue, item], excluded: session.excluded.filter((i) => i.key !== key) }
 }
 
 // The question with progress that was answered most recently, or null.

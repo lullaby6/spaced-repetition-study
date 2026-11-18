@@ -33,9 +33,16 @@ export default function EditorScreen({
   onDelete,
   onToggleQuestion,
   onToggleTopic,
+  onSetQuestionsActive,
+  onSetTopicsActive,
   onDownload,
   onBack,
+  deletedCount = 0,
+  onOpenDeleted,
+  onSortByNumber,
 }) {
+  // Questions out of number order (e.g. after restoring some): offer to sort them.
+  const outOfOrder = bank.some((q, i) => i > 0 && Number(q.id) < Number(bank[i - 1].id))
   const { t } = useI18n()
   const [search, setSearch] = useState('')
   const [topic, setTopic] = useState('')
@@ -74,6 +81,16 @@ export default function EditorScreen({
               <button type="button" className="btn btn-ghost btn-sm" onClick={onBack}>
                 {t('common.back')}
               </button>
+              {outOfOrder && (
+                <button type="button" className="btn btn-outline btn-warning btn-sm" onClick={onSortByNumber}>
+                  {t('editor.sortByNumber')}
+                </button>
+              )}
+              {deletedCount > 0 && (
+                <button type="button" className="btn btn-ghost btn-sm" onClick={onOpenDeleted}>
+                  {t('editor.deleted', { count: deletedCount })}
+                </button>
+              )}
               <button type="button" className="btn btn-outline btn-sm" onClick={onDownload}>
                 {t('editor.download')}
               </button>
@@ -96,6 +113,24 @@ export default function EditorScreen({
             </summary>
             <div className="collapse-content">
               <p className="mb-2 text-sm opacity-70">{t('editor.topicsHelp')}</p>
+              <div className="mb-2 flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  className="btn btn-outline btn-xs"
+                  onClick={() => onSetTopicsActive(topics, true)}
+                  disabled={!disabledTopics.some((x) => topics.includes(x))}
+                >
+                  {t('editor.allTopicsOn')}
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-outline btn-xs"
+                  onClick={() => onSetTopicsActive(topics, false)}
+                  disabled={topics.every((x) => disabledTopics.includes(x))}
+                >
+                  {t('editor.allTopicsOff')}
+                </button>
+              </div>
               <ul className="space-y-1">
                 {topics.map((tp) => {
                   const on = !disabledTopics.includes(tp)
@@ -138,6 +173,32 @@ export default function EditorScreen({
           </div>
         </div>
       </div>
+
+      {rows.length > 0 && (
+        <div className="flex flex-wrap items-center justify-between gap-2 px-1">
+          <span className="text-sm opacity-70">
+            {rows.length === bank.length ? t('editor.showingAll', { count: rows.length }) : t('editor.showingSome', { count: rows.length, total: bank.length })}
+          </span>
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              className="btn btn-outline btn-xs"
+              onClick={() => onSetQuestionsActive(rows.map((q) => q.key), true)}
+              disabled={!rows.some((q) => q.disabled)}
+            >
+              {rows.length === bank.length ? t('editor.allOn') : t('editor.shownOn', { count: rows.length })}
+            </button>
+            <button
+              type="button"
+              className="btn btn-outline btn-xs"
+              onClick={() => onSetQuestionsActive(rows.map((q) => q.key), false)}
+              disabled={rows.every((q) => q.disabled)}
+            >
+              {rows.length === bank.length ? t('editor.allOff') : t('editor.shownOff', { count: rows.length })}
+            </button>
+          </div>
+        </div>
+      )}
 
       {editing === 'new' && (
         <QuestionForm

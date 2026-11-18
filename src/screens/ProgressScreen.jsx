@@ -35,6 +35,8 @@ export default function ProgressScreen({
   onSwitchBank,
   onResetQuestion,
   onResetAll,
+  resetCount = 0,
+  onOpenResets,
 }) {
   const { t, lang } = useI18n()
   const [search, setSearch] = useState('')
@@ -75,15 +77,22 @@ export default function ProgressScreen({
               )}
             </div>
             {activeBank && (
-              <button
-                type="button"
-                className="btn btn-outline btn-error btn-sm"
-                onClick={onResetAll}
-                disabled={!Object.values(progress).some((p) => p.status !== 'new')}
-              >
-                <ResetIcon />
-                {t('progress.resetAll')}
-              </button>
+              <div className="flex flex-wrap gap-2">
+                {resetCount > 0 && (
+                  <button type="button" className="btn btn-ghost btn-sm" onClick={onOpenResets}>
+                    {t('progress.restoreResets', { count: resetCount })}
+                  </button>
+                )}
+                <button
+                  type="button"
+                  className="btn btn-outline btn-error btn-sm"
+                  onClick={onResetAll}
+                  disabled={!Object.values(progress).some((p) => p.status !== 'new')}
+                >
+                  <ResetIcon />
+                  {t('progress.resetAll')}
+                </button>
+              </div>
             )}
           </div>
           {activeBank && banks.length > 1 && (

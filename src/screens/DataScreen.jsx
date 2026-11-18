@@ -1,8 +1,10 @@
 import { useRef } from 'react'
 import { useI18n } from '../i18n.jsx'
+import TrashPanel from '../components/TrashPanel.jsx'
 
-// Export / import every bank with its progress as JSON, and reset the active bank's progress.
-export default function DataScreen({ hasBank, onExport, onImport, onReset }) {
+// Export / import every bank with its progress as JSON, reset the active bank's progress, and the
+// trash with everything deleted or reset (always restorable).
+export default function DataScreen({ hasBank, onExport, onImport, onReset, trash, onRestore }) {
   const { t } = useI18n()
   const fileRef = useRef(null)
 
@@ -36,6 +38,18 @@ export default function DataScreen({ hasBank, onExport, onImport, onReset }) {
           {t('data.reset')}
         </button>
       </DataCard>
+
+      <section className="card border border-base-300 bg-base-100 shadow-sm">
+        <div className="card-body gap-3 p-4 sm:p-6">
+          <div>
+            <h2 className="font-semibold">
+              {t('trash.title')} <span className="font-normal opacity-60">({trash.length})</span>
+            </h2>
+            <p className="text-sm opacity-70">{t('trash.help')}</p>
+          </div>
+          <TrashPanel trash={trash} onRestore={onRestore} />
+        </div>
+      </section>
     </div>
   )
 }

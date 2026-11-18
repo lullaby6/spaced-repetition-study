@@ -7,9 +7,24 @@ import StatusBar from '../components/StatusBar.jsx'
 import Exercise from '../components/Exercise.jsx'
 import HistoryNav from '../components/HistoryNav.jsx'
 import Tooltip, { InfoTip } from '../components/Tooltip.jsx'
+import SessionOverview, { studyOverviewRows } from '../components/SessionOverview.jsx'
 import PastExercise from '../components/PastExercise.jsx'
 
-export default function StudyScreen({ session, bankByKey, counts, onResult, onSkip, onBackToSkipped, onFinish }) {
+export default function StudyScreen({
+  session,
+  progress,
+  bankByKey,
+  counts,
+  onResult,
+  onSkip,
+  onBackToSkipped,
+  onJump,
+  onToggle,
+  onDelete,
+  onFinish,
+  deletedCount,
+  onOpenDeleted,
+}) {
   const { t } = useI18n()
   const [position, setPosition] = useState(null) // index in session.log, or null for the current exercise
   const item = session.queue[0]
@@ -29,6 +44,24 @@ export default function StudyScreen({ session, bankByKey, counts, onResult, onSk
           {t('study.sessionInfo', { done: session.log.length, pending: session.queue.length })} <InfoTip text={t('info.queue')} />
         </div>
         <div className="flex flex-wrap items-center gap-1">
+          <SessionOverview
+            rows={studyOverviewRows(session, progress)}
+            bankByKey={bankByKey}
+            title={t('overview.title')}
+            onJump={(key) => {
+              setPosition(null)
+              onJump(key)
+            }}
+            onView={setPosition}
+            onCurrent={() => setPosition(null)}
+            onToggle={onToggle}
+            onDelete={(key) => {
+              setPosition(null) // its past exercises may disappear from the history view
+              onDelete(key)
+            }}
+            deletedCount={deletedCount}
+            onOpenDeleted={onOpenDeleted}
+          />
           {skippedKey && (
             <Tooltip text={t('study.backToSkippedHelp', { id: bankByKey.get(skippedKey)?.id ?? '' })} side="bottom">
               <button type="button" className="btn btn-outline btn-sm" onClick={onBackToSkipped} disabled={position !== null}>

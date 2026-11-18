@@ -44,6 +44,8 @@ export default function HomeScreen({
   onStartOver,
   onShowAiPrompt,
   onShowHelp,
+  deletedBanks = 0,
+  onOpenDeletedBanks,
 }) {
   const { t } = useI18n()
   const fileRef = useRef(null)
@@ -83,6 +85,16 @@ export default function HomeScreen({
     </button>
   )
 
+  const deletedBanksButton =
+    deletedBanks > 0 ? (
+      <button type="button" className="btn btn-ghost" onClick={onOpenDeletedBanks}>
+        <svg viewBox="0 0 24 24" className="size-4" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+          <path d="M3 12a9 9 0 1 0 3-6.7L3 8m0-5v5h5" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+        {t('home.deletedBanks', { count: deletedBanks })}
+      </button>
+    ) : null
+
   return (
     <div className="space-y-6">
       {!hasBank && (
@@ -93,6 +105,7 @@ export default function HomeScreen({
             <div className="flex flex-wrap justify-center gap-2">
               {aiButton}
               {helpButton}
+              {deletedBanksButton}
             </div>
           </div>
         </section>
@@ -231,6 +244,7 @@ export default function HomeScreen({
         <div className="flex flex-wrap justify-center gap-2">
           {aiButton}
           {helpButton}
+          {deletedBanksButton}
         </div>
       )}
     </div>

@@ -18,7 +18,8 @@ export function createBank({ name, questions, warnings = [], progress = {}, sett
   return { id: newBankId(), name, questions, warnings, progress, settings: { ...DEFAULT_SETTINGS, ...settings }, session, disabledTopics }
 }
 
-export const EMPTY_LIBRARY = { banks: [], activeId: null }
+// `trash` keeps everything that was deleted or reset so it can always be restored (see trash.js).
+export const EMPTY_LIBRARY = { banks: [], activeId: null, trash: [] }
 
 // v1 kept a single bank: { bankName, bank, warnings, progress, settings, session }.
 function fromSingleBank(old) {
@@ -31,7 +32,7 @@ function fromSingleBank(old) {
     settings: old.settings,
     session: old.session,
   })
-  return { banks: [bank], activeId: bank.id }
+  return { banks: [bank], activeId: bank.id, trash: [] }
 }
 
 function isLibrary(data) {
@@ -43,6 +44,7 @@ function isLibrary(data) {
 function fixUnansweredLearning(library) {
   return {
     ...library,
+    trash: Array.isArray(library.trash) ? library.trash : [],
     banks: library.banks.map((bank) => {
       const progress = { ...bank.progress }
       for (const [key, p] of Object.entries(progress)) {
@@ -85,6 +87,7 @@ export function buildBackup(state) {
     exportedAt: new Date().toISOString(),
     activeId: state.activeId,
     banks: state.banks.map(({ session, ...bank }) => bank), // sessions are not exported
+    trash: state.trash ?? [],
   }
 }
 
@@ -106,7 +109,7 @@ export function libraryFromBackup(data) {
   if (!Array.isArray(data.banks)) return fromSingleBank(data)
   const banks = data.banks.map((b) => ({ ...createBank({ ...b, name: b.name || 'banco.md' }), id: b.id || newBankId() }))
   const activeId = banks.some((b) => b.id === data.activeId) ? data.activeId : banks[0].id
-  return { banks, activeId }
+  return { banks, activeId, trash: Array.isArray(data.trash) ? data.trash : [] }
 }
 
 export function downloadJson(filename, data) {

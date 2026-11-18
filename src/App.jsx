@@ -1,13 +1,15 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useI18n } from './i18n.jsx'
 import { assignKeys, isQuestionActive, readBankFile } from './lib/bank.js'
-import { countStatuses, lastStudiedKey, recordResult, removeFromSession, resetQuestion, skipCurrent, backToSkipped, startSession, summarizeSession } from './lib/queue.js'
+import { countStatuses, lastStudiedKey, recordResult, removeFromSession, resetQuestion, skipCurrent, backToSkipped, jumpTo, excludeFromSession, includeInSession, startSession, summarizeSession } from './lib/queue.js'
 import { buildBackup, createBank, DEFAULT_SETTINGS, downloadJson, downloadText, isValidBackup, libraryFromBackup, loadState, saveState } from './lib/storage.js'
 import { parseCloze, serializeBank } from './lib/parser.js'
 import EditorScreen from './screens/EditorScreen.jsx'
 import HelpScreen from './screens/HelpScreen.jsx'
 import { shuffle } from './lib/text.js'
 import { buildChoice, DEFAULT_EXAM_SIZE, resolveExamSize } from './lib/exam.js'
+import { makeTrashId, restoreFromTrash, trashAllBanks, trashBank, trashBankCopy, trashProgress, trashQuestion } from './lib/trash.js'
+import TrashPanel from './components/TrashPanel.jsx'
 import ConfirmModal from './components/ConfirmModal.jsx'
 import AiPromptModal from './components/AiPromptModal.jsx'
 import RenameModal from './components/RenameModal.jsx'
@@ -30,6 +32,8 @@ const TOAST_CLASSES = { success: 'alert-success', error: 'alert-error', info: 'a
 export default function App() {
   const { t } = useI18n()
   const [library, setLibrary] = useState(loadState)
+  const libraryRef = useRef(library)
+  libraryRef.current = library
   const [view, setView] = useState('home')
   const [setupPurpose, setSetupPurpose] = useState('study')
   const [summary, setSummary] = useState(null)
@@ -44,7 +48,8 @@ export default function App() {
 
   useEffect(() => {
     if (!toast) return undefined
-    const id = setTimeout(() => setToast(null), 4500)
+    // Toasts with an action (Undo) stay longer so there is time to use it.
+    const id = setTimeout(() => setToast(null), toast.action ? 9000 : 4500)
     return () => clearTimeout(id)
   }, [toast])
 
@@ -88,7 +93,8 @@ export default function App() {
     }).length
   }, [activeQuestions, progress])
 
-  const notify = (type, text) => setToast({ type, text })
+  // `action` ({ label, onClick }) adds a button to the toast, e.g. "Undo".
+  const notify = (type, text, action = null) => setToast({ type, text, action, at: Date.now() })
 
   // ---- Study session ----
   const beginSession = (nextSettings, mode) => {
@@ -120,10 +126,16 @@ export default function App() {
   }
 
   // ---- Progress of single questions ----
+  // The progress it had is kept in the trash (restorable).
   const resetOne = (key) => {
-    const r = resetQuestion(session, progress, key)
-    updateActive(() => ({ progress: r.progress, session: r.session }))
-    notify('success', t('toast.questionReset', { id: bankByKey.get(key)?.id ?? key }))
+    const tid = makeTrashId()
+    setLibrary((lib) => {
+      const current = lib.banks.find((b) => b.id === lib.activeId)
+      const kept = trashProgress(lib, current, [key], tid)
+      const r = resetQuestion(current.session, current.progress, key)
+      return { ...kept, banks: kept.banks.map((b) => (b.id === lib.activeId ? { ...b, progress: r.progress, session: r.session } : b)) }
+    })
+    notify('success', t('toast.questionReset', { id: bankByKey.get(key)?.id ?? key }), undoAction(tid))
   }
 
   // ---- Editing questions ----
@@ -147,14 +159,23 @@ export default function App() {
     notify('success', t(key ? 'toast.questionSaved' : 'toast.questionAdded', { id }))
   }
 
+  // Deleting only takes the question down to the trash, with its progress (restorable).
   const deleteQuestion = (key) => {
     const id = bankByKey.get(key)?.id
-    updateActive((b) => {
-      const r = resetQuestion(b.session, b.progress, key)
-      const { [key]: _removed, ...progressLeft } = r.progress
-      return { questions: b.questions.filter((q) => q.key !== key), progress: progressLeft, session: r.session }
+    const tid = makeTrashId()
+    setLibrary((lib) => {
+      const current = lib.banks.find((b) => b.id === lib.activeId)
+      const kept = trashQuestion(lib, current, key, tid)
+      const { [key]: _removed, ...progressLeft } = current.progress
+      const changed = {
+        ...current,
+        questions: current.questions.filter((q) => q.key !== key),
+        progress: progressLeft,
+        session: removeFromSession(current.session, progressLeft, [key]),
+      }
+      return { ...kept, banks: kept.banks.map((b) => (b.id === lib.activeId ? changed : b)) }
     })
-    notify('success', t('toast.questionDeleted', { id }))
+    notify('success', t('toast.questionDeleted', { id }), undoAction(tid))
   }
 
   // Turning a question or a whole topic off takes it out of the current session; its progress is kept.
@@ -167,6 +188,26 @@ export default function App() {
       session: disabling ? removeFromSession(b.session, b.progress, [key]) : b.session,
     }))
     notify('success', t(disabling ? 'toast.questionDisabled' : 'toast.questionEnabled', { id: q.id }))
+  }
+
+  // Bulk versions for the editor: turn many questions (or topics) on or off at once.
+  const setQuestionsActive = (keys, active) => {
+    const set = new Set(keys)
+    updateActive((b) => ({
+      questions: b.questions.map((q) => (set.has(q.key) ? { ...q, disabled: !active } : q)),
+      session: active ? b.session : removeFromSession(b.session, b.progress, keys),
+    }))
+    notify('success', t(active ? 'toast.manyEnabled' : 'toast.manyDisabled', { count: keys.length }))
+  }
+
+  const setTopicsActive = (topicList, active) => {
+    updateActive((b) => {
+      const current = b.disabledTopics ?? []
+      const disabledTopics = active ? current.filter((x) => !topicList.includes(x)) : [...new Set([...current, ...topicList])]
+      const keys = b.questions.filter((q) => topicList.includes(q.topic)).map((q) => q.key)
+      return { disabledTopics, session: active ? b.session : removeFromSession(b.session, b.progress, keys) }
+    })
+    notify('success', t(active ? 'toast.topicsEnabled' : 'toast.topicsDisabled'))
   }
 
   const toggleTopic = (topic) => {
@@ -232,12 +273,54 @@ export default function App() {
     ? [...(exam.skipped ?? [])].reverse().find((k) => exam.keys.indexOf(k) > exam.index) ?? null
     : null
 
-  // Brings that question back to the current position; the current one becomes the next.
-  const backToSkippedExam = () => {
-    if (!examSkippedKey) return
-    const keys = exam.keys.filter((k) => k !== examSkippedKey)
-    keys.splice(exam.index, 0, examSkippedKey)
-    setExam({ ...exam, keys, skipped: exam.skipped.filter((k) => k !== examSkippedKey) })
+  // Brings a pending question to the current position; the current one becomes the next.
+  const jumpExam = (key) => {
+    if (!key || exam.keys.indexOf(key) <= exam.index) return
+    const keys = exam.keys.filter((k) => k !== key)
+    keys.splice(exam.index, 0, key)
+    setExam({ ...exam, keys, skipped: (exam.skipped ?? []).filter((k) => k !== key) })
+  }
+  const backToSkippedExam = () => jumpExam(examSkippedKey)
+
+  // Takes a not-yet-answered question out of the mock exam (answered ones stay in the results).
+  const dropFromExam = (key) => {
+    setExam((ex) => {
+      if (!ex || ex.keys.indexOf(key) < ex.index) return ex
+      const keys = ex.keys.filter((k) => k !== key)
+      const skipped = (ex.skipped ?? []).filter((k) => k !== key)
+      if (ex.index < keys.length) return { ...ex, keys, skipped }
+      // Nothing left to answer: finish here.
+      setView(ex.results.length ? 'examSummary' : 'home')
+      return { ...ex, keys, skipped, index: Math.max(0, keys.length - 1) }
+    })
+  }
+
+  // "Session questions" window: turn a question off/on for this session only (bank and progress untouched).
+  const toggleInStudy = (key) => {
+    const id = bankByKey.get(key)?.id
+    if (session.excluded?.some((i) => i.key === key)) {
+      updateActive((b) => ({ session: includeInSession(b.session, key) }))
+      notify('success', t('toast.sessionOn', { id }))
+      return
+    }
+    const next = excludeFromSession(session, progress, key)
+    if (!next) return finishSession(session)
+    updateActive(() => ({ session: next }))
+    notify('success', t('toast.sessionOff', { id }))
+  }
+
+  // Same for the mock exam: an excluded question leaves the exam and can be put back at the end.
+  const toggleInExam = (key) => {
+    const id = bankByKey.get(key)?.id
+    if (exam.excluded?.includes(key)) {
+      setExam((ex) => ({ ...ex, keys: [...ex.keys, key], excluded: ex.excluded.filter((k) => k !== key) }))
+      notify('success', t('toast.examOn', { id }))
+      return
+    }
+    if (exam.keys.indexOf(key) < exam.index) return // already answered
+    setExam((ex) => ({ ...ex, excluded: [...(ex.excluded ?? []), key] }))
+    dropFromExam(key)
+    notify('success', t('toast.examOff', { id }))
   }
 
   // ---- Banks ----
@@ -267,9 +350,22 @@ export default function App() {
     const { name, parsed } = payload
     if (mode === 'new') {
       const created = createBank({ name, questions: assignKeys(parsed.questions), warnings: parsed.warnings })
-      setLibrary((lib) => ({ banks: [...lib.banks, created], activeId: created.id }))
+      setLibrary((lib) => ({ ...lib, banks: [...lib.banks, created], activeId: created.id }))
     } else if (mode === 'replace') {
-      updateActive(() => ({ name, questions: assignKeys(parsed.questions), warnings: parsed.warnings, progress: {}, session: null, settings: DEFAULT_SETTINGS }))
+      // The replaced bank (questions + progress) is kept in the trash.
+      const tid = makeTrashId()
+      setLibrary((lib) => {
+        const current = lib.banks.find((b) => b.id === lib.activeId)
+        const kept = trashBankCopy(lib, current, tid)
+        return {
+          ...kept,
+          banks: kept.banks.map((b) =>
+            b.id === lib.activeId
+              ? { ...b, name, questions: assignKeys(parsed.questions), warnings: parsed.warnings, progress: {}, session: null, settings: DEFAULT_SETTINGS, disabledTopics: [] }
+              : b,
+          ),
+        }
+      })
     } else {
       updateActive((b) => ({
         name: `${b.name} + ${name}`,
@@ -288,15 +384,36 @@ export default function App() {
     setModal(null)
   }
 
+  // Deleting only takes the bank down to the trash.
   const deleteBank = () => {
-    setLibrary((lib) => {
-      const banks = lib.banks.filter((b) => b.id !== lib.activeId)
-      return { banks, activeId: banks[0]?.id ?? null }
-    })
+    const tid = makeTrashId()
+    setLibrary((lib) => trashBank(lib, lib.activeId, tid))
     setExam(null)
     setSummary(null)
-    notify('success', t('toast.bankDeleted', { name: active?.name }))
+    notify('success', t('toast.bankDeleted', { name: active?.name }), undoAction(tid))
   }
+
+  // ---- Trash ----
+  const restoreTrash = (tid) => {
+    // Read the latest library: this can run from an "Undo" toast created before the deletion was saved.
+    const current = libraryRef.current
+    const r = restoreFromTrash(current, tid)
+    if (r.error) return notify('error', t(`toast.restore_${r.error}`))
+    const item = current.trash.find((x) => x.id === tid)
+    setLibrary(r.library)
+    if (item?.type === 'bank') {
+      setExam(null)
+      setSummary(null)
+    }
+    notify('success', t('toast.restored'))
+  }
+  // Trash window, optionally narrowed (e.g. only this bank's deleted questions).
+  const openTrash = (filter = {}, titleKey = 'trash.title') => setModal({ kind: 'trash', payload: { filter, titleKey } })
+  const trashCount = (types, bankId = null) =>
+    (library.trash ?? []).filter((x) => types.includes(x.type) && (!bankId || x.bankId === bankId)).length
+
+  // "Undo" button for the toast shown after deleting or resetting something.
+  const undoAction = (tid) => ({ label: t('toast.undo'), onClick: () => restoreTrash(tid) })
 
   // ---- Data ----
   const exportData = () => {
@@ -316,11 +433,18 @@ export default function App() {
 
   const confirmModal = () => {
     if (modal.kind === 'import') {
-      setLibrary(libraryFromBackup(modal.payload))
+      // The banks you had go to the trash, so an import never loses anything.
+      const imported = libraryFromBackup(modal.payload)
+      setLibrary((lib) => ({ ...imported, trash: [...imported.trash, ...trashAllBanks(lib)] }))
       notify('success', t('toast.imported'))
     } else if (modal.kind === 'reset') {
-      updateActive(() => ({ progress: {}, session: null }))
-      notify('success', t('toast.resetDone'))
+      const tid = makeTrashId()
+      setLibrary((lib) => {
+        const current = lib.banks.find((b) => b.id === lib.activeId)
+        const kept = trashProgress(lib, current, null, tid)
+        return { ...kept, banks: kept.banks.map((b) => (b.id === lib.activeId ? { ...b, progress: {}, session: null } : b)) }
+      })
+      notify('success', t('toast.resetDone'), undoAction(tid))
     } else if (modal.kind === 'deleteBank') {
       deleteBank()
     }
@@ -409,6 +533,8 @@ export default function App() {
             onStartOver={() => setModal({ kind: 'reset' })}
             onShowAiPrompt={() => setModal({ kind: 'aiPrompt' })}
             onShowHelp={() => setView('help')}
+            deletedBanks={trashCount(['bank'])}
+            onOpenDeletedBanks={() => openTrash({ types: ['bank'] }, 'trash.banksTitle')}
           />
         )}
         {view === 'setup' && (
@@ -426,11 +552,17 @@ export default function App() {
           <StudyScreen
             key={library.activeId}
             session={session}
+            progress={progress}
             bankByKey={bankByKey}
             counts={counts}
             onResult={handleResult}
             onSkip={() => updateActive((b) => ({ session: skipCurrent(b.session) }))}
             onBackToSkipped={() => updateActive((b) => ({ session: backToSkipped(b.session) }))}
+            onJump={(key) => updateActive((b) => ({ session: jumpTo(b.session, key) }))}
+            onToggle={toggleInStudy}
+            onDelete={deleteQuestion}
+            deletedCount={trashCount(['question'], library.activeId)}
+            onOpenDeleted={() => openTrash({ types: ['question'], bankId: library.activeId }, 'trash.questionsTitle')}
             onFinish={() => finishSession(session)}
           />
         )}
@@ -461,6 +593,8 @@ export default function App() {
             }}
             onResetQuestion={resetOne}
             onResetAll={() => setModal({ kind: 'reset' })}
+            resetCount={trashCount(['progress'], library.activeId)}
+            onOpenResets={() => openTrash({ types: ['progress'], bankId: library.activeId }, 'trash.progressTitle')}
           />
         )}
         {view === 'help' && (
@@ -477,7 +611,16 @@ export default function App() {
             onDelete={deleteQuestion}
             onToggleQuestion={toggleQuestion}
             onToggleTopic={toggleTopic}
+            onSetQuestionsActive={setQuestionsActive}
+            onSetTopicsActive={setTopicsActive}
             onDownload={downloadBank}
+            deletedCount={trashCount(['question'], library.activeId)}
+            onOpenDeleted={() => openTrash({ types: ['question'], bankId: library.activeId }, 'trash.questionsTitle')}
+            onSortByNumber={() => {
+              // Stable sort: questions with the same number keep their relative order.
+              updateActive((b) => ({ questions: [...b.questions].sort((x, y) => Number(x.id) - Number(y.id)) }))
+              notify('success', t('toast.sorted'))
+            }}
             onBack={() => setView('home')}
           />
         )}
@@ -487,6 +630,8 @@ export default function App() {
             onExport={exportData}
             onImport={importData}
             onReset={() => setModal({ kind: 'reset' })}
+            trash={library.trash ?? []}
+            onRestore={restoreTrash}
           />
         )}
         {view === 'exam' && exam && (
@@ -497,6 +642,14 @@ export default function App() {
             onAnswer={answerExam}
             onSkip={skipExam}
             onBackToSkipped={backToSkippedExam}
+            onJump={jumpExam}
+            onToggle={toggleInExam}
+            deletedCount={trashCount(['question'], library.activeId)}
+            onOpenDeleted={() => openTrash({ types: ['question'], bankId: library.activeId }, 'trash.questionsTitle')}
+            onDelete={(key) => {
+              dropFromExam(key)
+              deleteQuestion(key)
+            }}
             onQuit={() => setView('home')}
           />
         )}
@@ -549,6 +702,21 @@ export default function App() {
         {modal && <p>{t(`modal.${modal.kind}Help`, { name: active?.name })}</p>}
       </ConfirmModal>
 
+      <ConfirmModal
+        open={modal?.kind === 'trash'}
+        title={modal?.kind === 'trash' ? t(modal.payload.titleKey) : ''}
+        onClose={() => setModal(null)}
+        closeLabel={t('common.close')}
+        boxClassName="max-w-2xl"
+      >
+        {modal?.kind === 'trash' && (
+          <div className="space-y-3">
+            <p className="text-sm opacity-70">{t('trash.help')}</p>
+            <TrashPanel trash={library.trash ?? []} filter={modal.payload.filter} onRestore={restoreTrash} />
+          </div>
+        )}
+      </ConfirmModal>
+
       <RenameModal open={modal?.kind === 'rename'} initialName={active?.name ?? ''} onSave={renameBank} onClose={() => setModal(null)} />
       <AiPromptModal open={modal?.kind === 'aiPrompt'} onClose={() => setModal(null)} />
 
@@ -556,6 +724,18 @@ export default function App() {
         <div className="toast toast-center toast-top z-50">
           <div role="status" className={`alert ${TOAST_CLASSES[toast.type]} flex items-center gap-2 py-2 pr-2 shadow-lg`}>
             <span className="flex-1">{toast.text}</span>
+            {toast.action && (
+              <button
+                type="button"
+                className="btn btn-sm border-current bg-transparent font-semibold"
+                onClick={() => {
+                  setToast(null)
+                  toast.action.onClick()
+                }}
+              >
+                {toast.action.label}
+              </button>
+            )}
             <Tooltip text={t('common.close')} side="bottom">
               <button
                 type="button"
