@@ -3,8 +3,10 @@ export default {
   app: {
     title: 'Estudio por repetición',
     language: 'Idioma',
-    shortcuts:
+    shortcutsStudy:
       'Atajos: Enter para corregir o pasar a la siguiente · Ctrl+Enter en los cuadros de texto largos · En Copiar: Alt+P escuchar/pausa, Alt+R desde el principio, Alt+O ocultar/mostrar la respuesta',
+    shortcutsChoice: 'Atajos: teclas 1 a 4 para elegir una opción · Enter para pasar a la siguiente',
+    shortcutsWrite: 'Atajos: Ctrl+Enter para comparar desde el cuadro de texto · Enter para ver el resultado o pasar a la siguiente',
   },
   nav: { label: 'Secciones', home: 'Inicio', progress: 'Progreso', data: 'Datos', help: 'Ayuda' },
   common: { cancel: 'Cancelar', close: 'Cerrar', back: 'Volver', confirm: 'Confirmar', save: 'Guardar' },

@@ -3,8 +3,10 @@ export default {
   app: {
     title: 'Spaced repetition study',
     language: 'Language',
-    shortcuts:
+    shortcutsStudy:
       'Shortcuts: Enter to check or go to the next one · Ctrl+Enter in long text boxes · In Copy: Alt+P listen/pause, Alt+R from the start, Alt+O hide/show the answer',
+    shortcutsChoice: 'Shortcuts: keys 1 to 4 to pick an option · Enter to go to the next one',
+    shortcutsWrite: 'Shortcuts: Ctrl+Enter to compare from the text box · Enter to see the result or go to the next one',
   },
   nav: { label: 'Sections', home: 'Home', progress: 'Progress', data: 'Data', help: 'Help' },
   common: { cancel: 'Cancel', close: 'Close', back: 'Back', confirm: 'Confirm', save: 'Save' },

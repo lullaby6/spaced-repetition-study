@@ -491,6 +491,14 @@ export default function App() {
   }
 
   const hasSession = !!session?.queue?.length
+  const shortcutsKey =
+    view === 'study' && hasSession
+      ? 'app.shortcutsStudy'
+      : view === 'exam' && exam
+        ? exam.mode === 'choice'
+          ? 'app.shortcutsChoice'
+          : 'app.shortcutsWrite'
+        : null
 
   const navItems = [
     { id: 'home', label: t('nav.home') },
@@ -738,7 +746,8 @@ export default function App() {
           />
         )}
 
-        <p className="mt-10 hidden text-center text-xs opacity-50 sm:block">{t('app.shortcuts')}</p>
+        {/* Keyboard shortcuts, only where they apply */}
+        {shortcutsKey && <p className="mt-10 hidden text-center text-xs opacity-50 sm:block">{t(shortcutsKey)}</p>}
       </main>
 
       <ConfirmModal
