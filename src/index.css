@@ -1,0 +1,62 @@
+@import 'tailwindcss';
+@plugin "daisyui" {
+  themes: light --default, dark --prefersdark;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  font-family: 'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+}
+
+/* Inputs of at least 16px avoid the iOS auto-zoom on focus. */
+input,
+textarea,
+select {
+  font-size: max(16px, 1em);
+}
+
+/* Neutral outline buttons (no color modifier): daisyUI draws their border with the text color, which is
+   pure white in dark mode. Use a faint border and a subtle hover instead. */
+.btn-outline:not(.btn-primary, .btn-secondary, .btn-accent, .btn-neutral, .btn-info, .btn-success, .btn-warning, .btn-error) {
+  --btn-border: color-mix(in oklab, var(--color-base-content) 18%, transparent);
+  border-color: var(--btn-border);
+}
+.btn-outline:not(.btn-primary, .btn-secondary, .btn-accent, .btn-neutral, .btn-info, .btn-success, .btn-warning, .btn-error):not(:disabled):hover {
+  --btn-border: color-mix(in oklab, var(--color-base-content) 32%, transparent);
+  background-color: color-mix(in oklab, var(--color-base-content) 7%, transparent);
+  color: var(--color-base-content);
+}
+
+/* Softer focus than daisyUI's default (thick base-content outline with a gap):
+   a border in the field's color plus a faint glow. Validation colors (input-success…) are kept. */
+.input,
+.textarea,
+.select {
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.input:focus,
+.input:focus-within,
+.textarea:focus,
+.textarea:focus-within,
+.select:focus,
+.select:focus-within {
+  --focus-color: var(--color-primary);
+  outline: none;
+  border-color: var(--focus-color);
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--focus-color) 22%, transparent);
+}
+.input-success:focus,
+.input-success:focus-within {
+  --focus-color: var(--color-success);
+}
+.input-error:focus,
+.input-error:focus-within {
+  --focus-color: var(--color-error);
+}
+.input-warning:focus,
+.input-warning:focus-within {
+  --focus-color: var(--color-warning);
+}
