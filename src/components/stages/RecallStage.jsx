@@ -56,7 +56,8 @@ export default function RecallStage({
 }) {
   const { t } = useI18n()
   const [typed, setTyped] = useState('')
-  const [phase, setPhase] = useState('writing') // writing | comparing | gaveUp
+  // writing → comparing (tick the key points; the result is not shown yet) → assessed; or gaveUp.
+  const [phase, setPhase] = useState('writing')
   const [ticked, setTicked] = useState(() => question.keyPoints.map(() => false))
   const [hintLevel, setHintLevel] = useState(0)
   const nextHint = WRITE_HINT_LEVELS[hintLevel]
@@ -65,7 +66,13 @@ export default function RecallStage({
     [phase, question.keyPoints, typed],
   )
 
-  useEnterHotkey(() => setPhase('comparing'), phase === 'writing')
+  // Comparing starts with the suggested key points already ticked; the user unticks what doesn't apply.
+  const compare = () => {
+    setTicked(suggestKeyPoints(question.keyPoints, typed))
+    setPhase('comparing')
+  }
+  useEnterHotkey(compare, phase === 'writing')
+  useEnterHotkey(() => setPhase('assessed'), phase === 'comparing')
 
   const total = question.keyPoints.length
   const count = ticked.filter(Boolean).length
@@ -158,7 +165,7 @@ export default function RecallStage({
             <button type="button" className="btn btn-ghost" onClick={() => setPhase('gaveUp')}>
               {t('exercise.dontRemember')}
             </button>
-            <button type="button" className="btn btn-primary" onClick={() => setPhase('comparing')}>
+            <button type="button" className="btn btn-primary" onClick={compare}>
               {t('stages.recall.compare')}
               <kbd className="kbd kbd-sm hidden sm:inline-flex">Ctrl+Enter</kbd>
             </button>
@@ -213,6 +220,14 @@ export default function RecallStage({
 
           {showFullAnswer && <AnswerBox answer={question.answer} keywords={question.cloze.blanks} />}
 
+          {phase === 'comparing' ? (
+            <div className="flex justify-end">
+              <button type="button" className="btn btn-primary w-full sm:w-auto" onClick={() => setPhase('assessed')}>
+                {t('stages.recall.showResult', { count, total })}
+                <kbd className="kbd kbd-sm hidden sm:inline-flex">Enter</kbd>
+              </button>
+            </div>
+          ) : (
           <ResultPanel
             focusNext={false}
             result={result}
@@ -231,6 +246,7 @@ export default function RecallStage({
             onRetry={result === 'failed' ? () => onRetry(record) : null}
             onNext={() => onDone(record)}
           />
+          )}
         </>
       )}
     </div>

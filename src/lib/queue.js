@@ -15,6 +15,41 @@ const TRANSITIONS = {
 const REVIEW_FAIL_GAP = 3
 const DAY_MS = 24 * 60 * 60 * 1000
 
+export const ALL_STAGES = [1, 2, 3, 4]
+// Session options chosen in the setup: which stages to do, and whether a failure sends the
+// question back a stage (default) or just repeats the same stage later (`noBacktrack`).
+export const DEFAULT_OPTIONS = { stages: ALL_STAGES, noBacktrack: false }
+
+function optionsOf(session) {
+  const stages = [...new Set((session?.options?.stages ?? ALL_STAGES).filter((s) => ALL_STAGES.includes(s)))].sort()
+  return { stages: stages.length ? stages : ALL_STAGES, noBacktrack: !!session?.options?.noBacktrack }
+}
+
+// The stages enabled in a session (all four for sessions started before stages could be chosen).
+export function sessionStages(session) {
+  return optionsOf(session).stages
+}
+
+// The enabled stage to use for `stage`: itself if enabled, else the next enabled one, else the last.
+function fitStage(stage, stages) {
+  return stages.find((s) => s >= stage) ?? stages[stages.length - 1]
+}
+
+// What happens after `result` at `stage` (table 4.1 adapted to the enabled stages):
+// { mastered: true } or { stage, gap }.
+function nextStep(stage, result, { stages, noBacktrack }) {
+  const gaps = TRANSITIONS[stage]
+  if (result === 'passed') {
+    const next = stages.find((s) => s > stage)
+    if (!next) return { mastered: true }
+    return { stage: next, gap: gaps.passed.gap ?? 4 }
+  }
+  const gap = (gaps[result] ?? gaps.partial ?? { gap: 2 }).gap
+  if (result === 'partial' || noBacktrack) return { stage, gap }
+  const previous = [...stages].reverse().find((s) => s < stage)
+  return { stage: previous ?? stage, gap }
+}
+
 export function initialProgress(key) {
   return { key, stage: 1, status: 'new', comesBackIn: null, attempts: 0, correct: 0, lastSeen: null, nextReview: null }
 }
@@ -25,14 +60,23 @@ function startOfTomorrow(from = new Date()) {
   return d.toISOString()
 }
 
+// Where a failed review goes back to (normally the stage before the review stage).
+function reviewFailStage(options) {
+  const { stages, noBacktrack } = options
+  const last = stages[stages.length - 1]
+  if (noBacktrack) return last
+  return [...stages].reverse().find((s) => s < last) ?? last
+}
+
 // Consequence of a result as a translation code + params, shown before "next".
-export function describeOutcome(item, result) {
+export function describeOutcome(item, result, session = null) {
+  const options = optionsOf(session)
   if (item.kind === 'review') {
     return result === 'passed'
       ? { code: 'outcome.reviewPassed', params: { days: REVIEW_INTERVAL_DAYS } }
-      : { code: 'outcome.reviewFailed' }
+      : { code: 'outcome.reviewFailed', params: { stage: reviewFailStage(options) } }
   }
-  const t = TRANSITIONS[item.stage][result]
+  const t = nextStep(item.stage, result, options)
   if (t.mastered) return { code: 'outcome.mastered' }
   return { code: 'outcome.comesBack', params: { stage: t.stage, gap: t.gap } }
 }
@@ -47,10 +91,11 @@ function refill(session, progress) {
   const queue = [...session.queue]
   const pending = [...session.pendingNew]
   let introduced = session.newIntroduced
+  const firstStage = optionsOf(session).stages[0]
   while (countLearning(queue) < MAX_LEARNING && introduced < session.newLimit && pending.length) {
     const key = pending.shift()
     if ((progress[key]?.status ?? 'new') !== 'new') continue
-    queue.push({ key, stage: 1, kind: 'learn' })
+    queue.push({ key, stage: firstStage, kind: 'learn' })
     introduced++
   }
   return { session: { ...session, queue, pendingNew: pending, newIntroduced: introduced }, progress }
@@ -65,13 +110,16 @@ function interleave(a, b) {
   return out
 }
 
-// mode: 'normal' (learning + reviews that are due) or 'review' (every mastered question, in stage 4).
+// mode: 'normal' (learning + reviews that are due) or 'review' (every mastered question, in the last
+// enabled stage). settings.stages / settings.noBacktrack become the session options.
 export function startSession(bank, progress, settings, mode = 'normal') {
   const now = new Date()
   const fullProgress = { ...progress }
   for (const q of bank) if (!fullProgress[q.key]) fullProgress[q.key] = initialProgress(q.key)
   const pool = bank.filter((q) => !settings.topics || settings.topics.includes(q.topic))
   const prog = (q) => fullProgress[q.key]
+  const options = optionsOf({ options: { stages: settings.stages, noBacktrack: settings.noBacktrack } })
+  const reviewStage = options.stages[options.stages.length - 1]
 
   const reviews = shuffle(
     pool.filter(
@@ -79,14 +127,15 @@ export function startSession(bank, progress, settings, mode = 'normal') {
         prog(q).status === 'mastered' &&
         (mode === 'review' || !prog(q).nextReview || new Date(prog(q).nextReview) <= now),
     ),
-  ).map((q) => ({ key: q.key, stage: 4, kind: 'review' }))
+  ).map((q) => ({ key: q.key, stage: reviewStage, kind: 'review' }))
 
+  // Questions already being learned continue at their stage (moved to an enabled one if needed).
   const learning =
     mode === 'review'
       ? []
       : pool
           .filter((q) => prog(q).status === 'learning' || prog(q).status === 'review')
-          .map((q) => ({ key: q.key, stage: prog(q).stage, kind: 'learn' }))
+          .map((q) => ({ key: q.key, stage: fitStage(prog(q).stage, options.stages), kind: 'learn' }))
 
   let fresh = pool.filter((q) => prog(q).status === 'new').map((q) => q.key)
   if (settings.order === 'random') fresh = shuffle(fresh)
@@ -100,6 +149,7 @@ export function startSession(bank, progress, settings, mode = 'normal') {
     newLimit: mode === 'review' ? 0 : settings.newPerSession,
     log: [],
     counter: 0,
+    options,
   }
   const r = refill(session, fullProgress)
   r.session.queue = interleave(r.session.queue, reviews)
@@ -124,19 +174,21 @@ export function recordResult(session, progress, result, response = null) {
     lastSeen: now.toISOString(),
   }
   let reinsert = null
+  const options = optionsOf(session)
 
   if (item.kind === 'review') {
     if (result === 'passed') {
       p.status = 'mastered'
       p.nextReview = new Date(now.getTime() + REVIEW_INTERVAL_DAYS * DAY_MS).toISOString()
     } else {
-      Object.assign(p, { status: 'review', stage: 3, comesBackIn: REVIEW_FAIL_GAP, nextReview: null })
-      reinsert = { item: { key: item.key, stage: 3, kind: 'learn' }, gap: REVIEW_FAIL_GAP }
+      const stage = reviewFailStage(options)
+      Object.assign(p, { status: 'review', stage, comesBackIn: REVIEW_FAIL_GAP, nextReview: null })
+      reinsert = { item: { key: item.key, stage, kind: 'learn' }, gap: REVIEW_FAIL_GAP }
     }
   } else {
-    const t = TRANSITIONS[item.stage][result]
+    const t = nextStep(item.stage, result, options)
     if (t.mastered) {
-      Object.assign(p, { status: 'mastered', stage: 4, comesBackIn: null, nextReview: startOfTomorrow(now) })
+      Object.assign(p, { status: 'mastered', stage: item.stage, comesBackIn: null, nextReview: startOfTomorrow(now) })
     } else {
       p.stage = t.stage
       p.comesBackIn = t.gap
@@ -233,7 +285,8 @@ export function removeFromSession(session, progress, keys) {
 export function excludeFromSession(session, progress, key) {
   if (!session) return session
   const item =
-    session.queue.find((i) => i.key === key) ?? (session.pendingNew.includes(key) ? { key, stage: 1, kind: 'learn' } : null)
+    session.queue.find((i) => i.key === key) ??
+    (session.pendingNew.includes(key) ? { key, stage: optionsOf(session).stages[0], kind: 'learn' } : null)
   if (!item) return session
   const trimmed = {
     ...session,

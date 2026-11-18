@@ -2,7 +2,7 @@
 import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
 import { clozeToRaw, missingFields, parseBank, parseCloze, serializeBank } from '../src/lib/parser.js'
-import { MAX_LEARNING, recordResult, startSession, countStatuses, resetQuestion, lastStudiedKey, removeFromSession, skipCurrent, lastSkipped, backToSkipped, jumpTo, excludeFromSession, includeInSession } from '../src/lib/queue.js'
+import { MAX_LEARNING, describeOutcome, recordResult, startSession, countStatuses, resetQuestion, lastStudiedKey, removeFromSession, skipCurrent, lastSkipped, backToSkipped, jumpTo, excludeFromSession, includeInSession } from '../src/lib/queue.js'
 import { isQuestionActive } from '../src/lib/bank.js'
 import { buildChoice, CHOICE_OPTIONS, optionsToEliminate } from '../src/lib/exam.js'
 import { buildShareData, decodeShare, encodeShare } from '../src/lib/share.js'
@@ -86,6 +86,37 @@ assert.equal(r.progress[review.session.queue[0].key].status, 'review')
 const passedReview = recordResult(review.session, review.progress, 'passed')
 const next = new Date(passedReview.progress[review.session.queue[0].key].nextReview)
 assert.ok(next - Date.now() > 2.9 * 24 * 3600 * 1000, 'next review in 3 days')
+
+// Choosing stages: without stage 4, passing stage 3 masters the question; reviews happen at stage 3.
+{
+  const three = { ...settings, stages: [1, 2, 3] }
+  let { session: s, progress: p } = startSession(bank, {}, three)
+  const key = s.queue[0].key
+  for (let guard = 0; p[key]?.status !== 'mastered' && guard < 50; guard++) {
+    while (s.queue[0].key !== key) ({ session: s, progress: p } = recordResult(s, p, 'passed'))
+    assert.ok(s.queue[0].stage <= 3, 'never stage 4')
+    ;({ session: s, progress: p } = recordResult(s, p, 'passed'))
+  }
+  assert.equal(p[key].status, 'mastered')
+  assert.equal(s.log.filter((l) => l.key === key).length, 3, 'three exercises: stages 1, 2, 3')
+  const review = startSession(bank, p, three, 'review')
+  assert.ok(review.session.queue.every((i) => i.stage === 3))
+  assert.deepEqual(describeOutcome({ key, stage: 3, kind: 'learn' }, 'passed', s), { code: 'outcome.mastered' })
+
+  // Starting at stage 2 (stage 1 off): new questions come in at stage 2.
+  const fromTwo = startSession(bank, {}, { ...settings, stages: [2, 3, 4] })
+  assert.ok(fromTwo.session.queue.every((i) => i.stage === 2))
+  // A failure at the first enabled stage stays there.
+  assert.deepEqual(describeOutcome({ key: '1', stage: 2, kind: 'learn' }, 'failed', fromTwo.session).params.stage, 2)
+}
+
+// "Don't go back on failure": a failure repeats the same stage.
+{
+  const keep = { ...settings, noBacktrack: true }
+  const { session: s } = startSession(bank, {}, keep)
+  assert.equal(describeOutcome({ key: '1', stage: 3, kind: 'learn' }, 'failed', s).params.stage, 3)
+  assert.equal(describeOutcome({ key: '1', stage: 3, kind: 'learn' }, 'failed', { options: { stages: [1, 2, 3, 4] } }).params.stage, 2, 'default goes back')
+}
 
 // Skipping: the exercise goes to the end, nothing is recorded.
 {

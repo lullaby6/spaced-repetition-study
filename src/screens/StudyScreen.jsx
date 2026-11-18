@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useI18n } from '../i18n.jsx'
 import { HotkeysActiveContext } from '../hooks/useHotkey.js'
-import { describeOutcome, lastSkipped } from '../lib/queue.js'
+import { describeOutcome, lastSkipped, sessionStages } from '../lib/queue.js'
 import QuestionCard from '../components/QuestionCard.jsx'
 import StatusBar from '../components/StatusBar.jsx'
 import Exercise from '../components/Exercise.jsx'
@@ -94,7 +94,7 @@ export default function StudyScreen({
       <HistoryNav position={position} total={session.log.length} onMove={setPosition} />
 
       {past && pastQuestion && (
-        <QuestionCard question={pastQuestion} stage={past.stage} badges={reviewBadge(past.kind)}>
+        <QuestionCard question={pastQuestion} stage={past.stage} stages={sessionStages(session)} badges={reviewBadge(past.kind)}>
           <PastExercise question={pastQuestion} entry={past} />
         </QuestionCard>
       )}
@@ -103,11 +103,17 @@ export default function StudyScreen({
       <div className={past ? 'hidden' : ''}>
         <HotkeysActiveContext.Provider value={!past}>
           {/* key forces a fresh exercise component for every queue step */}
-          <QuestionCard key={session.counter} question={question} stage={item.stage} badges={reviewBadge(item.kind)}>
+          <QuestionCard
+            key={session.counter}
+            question={question}
+            stage={item.stage}
+            stages={sessionStages(session)}
+            badges={reviewBadge(item.kind)}
+          >
             <Exercise
               question={question}
               stage={item.stage}
-              outcomeFor={(result) => describeOutcome(item, result)}
+              outcomeFor={(result) => describeOutcome(item, result, session)}
               onDone={(record) => {
                 setPosition(null)
                 onResult(record)

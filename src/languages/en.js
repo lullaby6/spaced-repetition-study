@@ -10,7 +10,7 @@ export default {
   common: { cancel: 'Cancel', close: 'Close', back: 'Back', confirm: 'Confirm', save: 'Save' },
   stage: {
     names: { 1: 'Copy', 2: 'Fill in', 3: 'With hints', 4: 'No help' },
-    label: 'Stage {stage} of 4 · {name}',
+    label: 'Stage {n} of {total} · {name}',
   },
   result: { passed: 'Passed', partial: 'Partly', failed: "Didn't know it", skipped: 'Skipped' },
   share: {
@@ -74,7 +74,7 @@ export default {
   },
   outcome: {
     reviewPassed: 'Still mastered. It will be reviewed again in {days} days.',
-    reviewFailed: 'Moves to "to review" and goes back to the queue at stage 3.',
+    reviewFailed: 'Moves to "to review" and goes back to the queue at stage {stage}.',
     mastered: 'Question mastered! It leaves the queue.',
     comesBack: 'Comes back at stage {stage} ({stageName}) in {gap} questions.',
   },
@@ -138,7 +138,8 @@ export default {
       empty: '(empty)',
       keyPoints: 'Key points',
       tickSuggested: 'Tick suggested',
-      checklistHelp: 'Tick the points you included, even if you said them differently. Green ones are a suggestion.',
+      checklistHelp: "We already ticked the ones that seem to be in your answer (in green). Check them: tick the ones you included even if you said them differently and untick the ones you didn't.",
+      showResult: 'Show result ({count} of {total})',
       suggested: 'suggested',
       score: '{count} of {total} points ({pct}%)',
     },
@@ -206,6 +207,11 @@ export default {
     order_bank: 'Bank order',
     order_random: 'Random',
     newPerSession: 'New questions per session',
+    stages: 'Stages',
+    stage4Note: '(the hardest)',
+    stagesNone: 'Pick at least one stage.',
+    noBacktrack: "Don't go back on failure",
+    noBacktrackHelp: 'If it goes badly, you repeat the same stage later instead of going back to the previous one.',
     replacesSession: "Starting a new session replaces the current one (each question's progress is kept).",
     start: 'Start',
     startExam: 'Start mock exam',
@@ -215,7 +221,7 @@ export default {
     exercises: 'Exercises done',
     mastered: 'Questions mastered',
     masteredList: 'Mastered this session',
-    noneMastered: 'None in this session. A question is mastered when you pass stage 4.',
+    noneMastered: 'None in this session. A question is mastered when you pass the last stage you have turned on.',
     hardest: 'Hardest ones',
     noneHard: "You didn't fail any exercise in this session.",
     weakTopics: 'Weakest topics',
@@ -379,7 +385,8 @@ export default {
     start4: 'Answer each exercise. When a question passes the last stage it is mastered; afterwards it is reviewed now and then so you do not forget it.',
     goHome: 'Go to home',
     stagesTitle: 'The four stages',
-    stagesIntro: 'Each question moves through these stages. If it goes well, it moves up; so-so, you repeat it; badly, it goes down.',
+    stagesIntro:
+      'Each question moves through these stages. If it goes well, it moves up; so-so, you repeat it; badly, it goes down (unless you turn on "Don\'t go back on failure"). When setting up the session you choose which stages to do; stage 4 is off by default.',
     stage1: 'you read the answer and type it once. You can listen to it aloud or hide it to type it from memory.',
     stage2: 'you fill in the missing key words of a summary. If you get stuck, ask for a hint: first the first letter, then the word.',
     stage3: 'you write the answer in your own words, with some hints in view, and then tick the key points you included.',
@@ -437,7 +444,7 @@ export default {
     stage:
       'Every question goes through 4 stages: 1 Copy the answer, 2 Fill in the blanks, 3 Recall it with hints and 4 Recall it with no help. If it goes well it moves up, if it goes so-so you repeat the same one, and if it goes badly it goes back one.',
     status:
-      "New: not studied yet. Learning: going through the 4 stages. To review: it was mastered but you failed a review. Mastered: you passed stage 4; it's reviewed the next day and then every 3 days.",
+      "New: not studied yet. Learning: going through the 4 stages. To review: it was mastered but you failed a review. Mastered: you passed the last stage (4, or whichever is your last); it's reviewed the next day and then every 3 days.",
     correct: 'Exercises passed out of exercises done with that question.',
     resetLast: '"Reset the last one" makes the question you studied most recently new again. Press it several times to undo your progress one question at a time.',
     queue:
@@ -446,6 +453,10 @@ export default {
     weakTopics: 'The topics with the highest share of exercises not passed in this session.',
     review: 'Reviews the questions you already mastered at stage 4 (no help). The number shows how many are due.',
     exam: 'Random questions, like an exam: multiple choice or written with no help. You choose how many. It does not change your progress.',
+    stages:
+      'Which exercises each question goes through. Stages that are off are skipped: a question is mastered when you pass the last stage that is on. Stage 4 (no help) is off by default; turn it on for the full challenge.',
+    noBacktrack:
+      'Normally, if a stage goes badly, the question goes back to the previous stage. With this option it stays at the same stage and you repeat it later, so you keep moving forward even when you fail.',
     examOrder:
       "The questions are always picked at random. Random: they come shuffled. Bank order: they follow the bank's numbering (e.g. 3, 8, 15…).",
     writeHints:

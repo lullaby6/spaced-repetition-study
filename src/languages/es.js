@@ -10,7 +10,7 @@ export default {
   common: { cancel: 'Cancelar', close: 'Cerrar', back: 'Volver', confirm: 'Confirmar', save: 'Guardar' },
   stage: {
     names: { 1: 'Copiar', 2: 'Completar', 3: 'Con pistas', 4: 'Sin ayuda' },
-    label: 'Etapa {stage} de 4 · {name}',
+    label: 'Etapa {n} de {total} · {name}',
   },
   result: { passed: 'Aprobada', partial: 'Más o menos', failed: 'No la sabía', skipped: 'Salteada' },
   share: {
@@ -74,7 +74,7 @@ export default {
   },
   outcome: {
     reviewPassed: 'Sigue dominada. Se vuelve a repasar dentro de {days} días.',
-    reviewFailed: 'Pasa a "para repasar" y vuelve a la cola en la etapa 3.',
+    reviewFailed: 'Pasa a "para repasar" y vuelve a la cola en la etapa {stage}.',
     mastered: '¡Pregunta dominada! Sale de la cola.',
     comesBack: 'Vuelve en la etapa {stage} ({stageName}) dentro de {gap} preguntas.',
   },
@@ -138,7 +138,8 @@ export default {
       empty: '(vacío)',
       keyPoints: 'Puntos clave',
       tickSuggested: 'Marcar sugeridos',
-      checklistHelp: 'Marcá los puntos que incluiste, aunque los hayas dicho con otras palabras. Los verdes son una sugerencia.',
+      checklistHelp: 'Ya marcamos los que parecen estar en tu respuesta (en verde). Revisá: marcá los que incluiste aunque los hayas dicho con otras palabras y desmarcá los que no.',
+      showResult: 'Ver resultado ({count} de {total})',
       suggested: 'sugerido',
       score: '{count} de {total} puntos ({pct}%)',
     },
@@ -206,6 +207,11 @@ export default {
     order_bank: 'El del banco',
     order_random: 'Aleatorio',
     newPerSession: 'Preguntas nuevas por sesión',
+    stages: 'Etapas',
+    stage4Note: '(la más difícil)',
+    stagesNone: 'Elegí al menos una etapa.',
+    noBacktrack: 'No retroceder al fallar',
+    noBacktrackHelp: 'Si te va mal, repetís la misma etapa más adelante en vez de volver a la anterior.',
     replacesSession: 'Empezar una sesión nueva reemplaza la sesión en curso (el progreso de cada pregunta se mantiene).',
     start: 'Empezar',
     startExam: 'Empezar simulacro',
@@ -215,7 +221,7 @@ export default {
     exercises: 'Ejercicios hechos',
     mastered: 'Preguntas dominadas',
     masteredList: 'Dominadas en esta sesión',
-    noneMastered: 'Ninguna en esta sesión. Una pregunta queda dominada cuando aprobás la etapa 4.',
+    noneMastered: 'Ninguna en esta sesión. Una pregunta queda dominada cuando aprobás la última etapa que tengas activa.',
     hardest: 'Las que más costaron',
     noneHard: 'No fallaste ningún ejercicio en esta sesión.',
     weakTopics: 'Temas más flojos',
@@ -379,7 +385,8 @@ export default {
     start4: 'Respondé cada ejercicio. Cuando una pregunta pasa la última etapa queda dominada; después se repasa cada tanto para que no se olvide.',
     goHome: 'Ir al inicio',
     stagesTitle: 'Las cuatro etapas',
-    stagesIntro: 'Cada pregunta avanza por estas etapas. Si te va bien, sube; si te va más o menos, la repetís; si te va mal, baja.',
+    stagesIntro:
+      'Cada pregunta avanza por estas etapas. Si te va bien, sube; si te va más o menos, la repetís; si te va mal, baja (salvo que actives "No retroceder al fallar"). Al configurar la sesión elegís qué etapas hacer; la 4 viene desactivada.',
     stage1: 'leés la respuesta y la escribís una vez. Podés escucharla en voz alta u ocultarla para escribirla de memoria.',
     stage2: 'completás las palabras clave que faltan en un resumen. Si te trabás, pedí una pista: primero la primera letra, después la palabra.',
     stage3: 'escribís la respuesta con tus palabras, con algunas pistas a la vista, y después marcás qué puntos clave incluiste.',
@@ -437,7 +444,7 @@ export default {
     stage:
       'Cada pregunta pasa por 4 etapas: 1 Copiar la respuesta, 2 Completar huecos, 3 Recordarla con pistas y 4 Recordarla sin ayuda. Si te va bien avanza a la siguiente, si te va más o menos repetís la misma y si te va mal vuelve a la anterior.',
     status:
-      'Nueva: todavía no la estudiaste. Aprendiendo: está pasando por las 4 etapas. Para repasar: la habías dominado pero fallaste un repaso. Dominada: pasaste la etapa 4; se repasa al día siguiente y después cada 3 días.',
+      'Nueva: todavía no la estudiaste. Aprendiendo: está pasando por las 4 etapas. Para repasar: la habías dominado pero fallaste un repaso. Dominada: pasaste la última etapa (la 4, o la que tengas como última); se repasa al día siguiente y después cada 3 días.',
     correct: 'Ejercicios aprobados sobre ejercicios hechos con esa pregunta.',
     resetLast: '"Reiniciar la última" deja como nueva la pregunta que estudiaste más recientemente. Apretalo varias veces para ir deshaciendo tu progreso de a una pregunta.',
     queue:
@@ -446,6 +453,10 @@ export default {
     weakTopics: 'Los temas con mayor porcentaje de ejercicios no aprobados en esta sesión.',
     review: 'Repasa en la etapa 4 (sin ayuda) las preguntas que ya dominás. El número indica cuántas tienen el repaso pendiente.',
     exam: 'Preguntas al azar, como en un examen: de opción múltiple o para escribir sin ayuda. Elegís cuántas. No cambia tu progreso.',
+    stages:
+      'Qué ejercicios hace cada pregunta. Las etapas desactivadas se saltean: una pregunta queda dominada al aprobar la última etapa activa. La etapa 4 (sin ayuda) viene desactivada; activala si querés el desafío completo.',
+    noBacktrack:
+      'Normalmente, si te va mal en una etapa, la pregunta vuelve a la etapa anterior. Con esta opción se queda en la misma etapa y la repetís más adelante, así avanzás aunque falles.',
     examOrder:
       'Las preguntas siempre se eligen al azar. Aleatorio: aparecen mezcladas. El del banco: aparecen siguiendo la numeración del banco (por ejemplo 3, 8, 15…).',
     writeHints:

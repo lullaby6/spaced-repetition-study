@@ -10,6 +10,15 @@ export default function SetupScreen({ purpose, topics, topicCounts, settings, ha
   const [selected, setSelected] = useState(() => new Set((settings.topics || topics).filter((tp) => topics.includes(tp))))
   const [order, setOrder] = useState(settings.order)
   const [newPerSession, setNewPerSession] = useState(settings.newPerSession)
+  const [stages, setStages] = useState(() => new Set(settings.stages ?? [1, 2, 3]))
+  const [noBacktrack, setNoBacktrack] = useState(!!settings.noBacktrack)
+  const toggleStage = (stage) =>
+    setStages((cur) => {
+      const next = new Set(cur)
+      if (next.has(stage)) next.delete(stage)
+      else next.add(stage)
+      return next
+    })
   const [examMode, setExamMode] = useState(settings.examMode || 'choice') // 'choice' | 'write'
   const [examOrder, setExamOrder] = useState(settings.examOrder || 'random') // 'random' | 'bank'
   // A preset (5, 10, 20, 'half', 'all') or 'custom' with its own number.
@@ -38,6 +47,8 @@ export default function SetupScreen({ purpose, topics, topicCounts, settings, ha
       topics: chosen.length === topics.length ? null : chosen,
       order,
       newPerSession: Math.max(1, Math.min(500, Number(newPerSession) || 15)),
+      stages: [1, 2, 3, 4].filter((s) => stages.has(s)),
+      noBacktrack,
       examMode,
       examOrder,
       examSize: sizeValue,
@@ -153,6 +164,37 @@ export default function SetupScreen({ purpose, topics, topicCounts, settings, ha
           <>
             <fieldset className="space-y-2">
               <legend className="font-semibold">
+                {t('setup.stages')} <InfoTip text={t('info.stages')} />
+              </legend>
+              <div className="grid gap-1 sm:grid-cols-2">
+                {[1, 2, 3, 4].map((stage) => (
+                  <label key={stage} className="flex min-h-11 cursor-pointer items-center gap-3 rounded-box px-2 hover:bg-base-200">
+                    <input
+                      type="checkbox"
+                      className="checkbox checkbox-primary checkbox-sm"
+                      checked={stages.has(stage)}
+                      onChange={() => toggleStage(stage)}
+                    />
+                    <span>
+                      {stage}. {t(`stage.names.${stage}`)}
+                      {stage === 4 && <span className="ml-1 text-sm opacity-60">{t('setup.stage4Note')}</span>}
+                    </span>
+                  </label>
+                ))}
+              </div>
+              {stages.size === 0 && <p className="text-sm text-error">{t('setup.stagesNone')}</p>}
+            </fieldset>
+
+            <label className="flex cursor-pointer items-start gap-3">
+              <input type="checkbox" className="toggle toggle-primary toggle-sm mt-0.5" checked={noBacktrack} onChange={(e) => setNoBacktrack(e.target.checked)} />
+              <span>
+                <span className="font-semibold">{t('setup.noBacktrack')}</span> <InfoTip text={t('info.noBacktrack')} />
+                <span className="block text-sm opacity-70">{t('setup.noBacktrackHelp')}</span>
+              </span>
+            </label>
+
+            <fieldset className="space-y-2">
+              <legend className="font-semibold">
                 {t('setup.order')} <InfoTip text={t('info.order')} side="right" />
               </legend>
               <div className="flex flex-wrap gap-4">
@@ -191,7 +233,7 @@ export default function SetupScreen({ purpose, topics, topicCounts, settings, ha
           <button type="button" className="btn btn-ghost" onClick={onCancel}>
             {t('common.back')}
           </button>
-          <button type="button" className="btn btn-primary" onClick={start} disabled={selected.size === 0 || (isExam && !examCount)}>
+          <button type="button" className="btn btn-primary" onClick={start} disabled={selected.size === 0 || (isExam ? !examCount : stages.size === 0)}>
             {isExam ? t('setup.startExam') : t('setup.start')}
           </button>
         </div>

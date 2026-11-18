@@ -83,7 +83,8 @@ export default function App() {
   const active = library.banks.find((b) => b.id === library.activeId) || null
   const bank = active?.questions ?? NO_QUESTIONS
   const progress = active?.progress ?? NO_PROGRESS
-  const settings = active?.settings ?? DEFAULT_SETTINGS
+  // Saved settings may predate newer options (e.g. stages): fill those in with the defaults.
+  const settings = useMemo(() => ({ ...DEFAULT_SETTINGS, ...active?.settings }), [active?.settings])
   const session = active?.session ?? null
 
   const updateActive = useCallback(
