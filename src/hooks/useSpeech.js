@@ -26,7 +26,10 @@ function wordLength(text, index) {
 // being said (not every voice reports words, so `sentence` is the fallback indicator).
 // Pausing cancels and remembers the position; resuming speaks again from that word. That works the
 // same in every browser, unlike speechSynthesis.pause(), which several voices ignore.
-export function useSpeech() {
+// `rate`: voice speed (1 = normal); a change applies from the next sentence.
+export function useSpeech({ rate = 0.95 } = {}) {
+  const rateRef = useRef(rate)
+  rateRef.current = rate
   const [status, setStatus] = useState('idle')
   const [sentence, setSentence] = useState(null)
   const [word, setWord] = useState(null)
@@ -65,7 +68,7 @@ export function useSpeech() {
     utterances.current = parts.map((part, i) => {
       const utterance = new SpeechSynthesisUtterance(part.text)
       utterance.lang = lang
-      utterance.rate = 0.95
+      utterance.rate = rateRef.current
       if (voice) utterance.voice = voice
       utterance.onstart = () => {
         if (run.current !== id) return

@@ -13,6 +13,17 @@ export default {
     label: 'Etapa {n} de {total} · {name}',
   },
   result: { passed: 'Aprobada', partial: 'Más o menos', failed: 'No la sabía', skipped: 'Salteada' },
+  browse: {
+    title: 'Ver preguntas y respuestas',
+    help: 'Todas las preguntas con sus respuestas, agrupadas por tema, para leerlas tranquilo. Podés ocultar las respuestas para probarte.',
+    count: 'Mostrando {count} de {total} preguntas',
+    showAnswers: 'Mostrar respuestas',
+    showKeyPoints: 'Mostrar puntos clave',
+    hiddenHelp: 'Respuestas ocultas: pensá la respuesta y tocá la pregunta para verla.',
+    reveal: 'Ver respuesta',
+    hide: 'Ocultar',
+    listen: 'Escuchar la pregunta {id} y su respuesta',
+  },
   listen: {
     title: 'Aprender escuchando',
     help: 'Como una playlist: escuchás cada pregunta, tenés unos segundos para pensar la respuesta y después la escuchás. Sigue sola con la próxima. Ideal para repasar mientras viajás o caminás.',

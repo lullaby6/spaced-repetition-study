@@ -7,6 +7,7 @@ import { parseCloze, serializeBank } from './lib/parser.js'
 import EditorScreen from './screens/EditorScreen.jsx'
 import HelpScreen from './screens/HelpScreen.jsx'
 import ListenScreen from './screens/ListenScreen.jsx'
+import BrowseScreen from './screens/BrowseScreen.jsx'
 import { shuffle } from './lib/text.js'
 import { buildChoice, DEFAULT_EXAM_SIZE, resolveExamSize } from './lib/exam.js'
 import { makeTrashId, removeFromTrash, restoreFromTrash, trashAllBanks, trashBank, trashBankCopy, trashProgress, trashQuestion } from './lib/trash.js'
@@ -570,6 +571,7 @@ export default function App() {
             onShowAiPrompt={() => setModal({ kind: 'aiPrompt' })}
             onShowHelp={() => setView('help')}
             onListen={() => setView('listen')}
+            onBrowse={() => setView('browse')}
             deletedBanks={trashCount(['bank'])}
             onOpenDeletedBanks={() => openTrash({ types: ['bank'] }, 'trash.banksTitle')}
           />
@@ -637,6 +639,15 @@ export default function App() {
             onResetAll={() => setModal({ kind: 'reset' })}
             resetCount={trashCount(['progress'], library.activeId)}
             onOpenResets={() => openTrash({ types: ['progress'], bankId: library.activeId }, 'trash.progressTitle')}
+          />
+        )}
+        {view === 'browse' && active && (
+          <BrowseScreen
+            key={library.activeId}
+            questions={activeQuestions}
+            savedRate={settings.browseRate}
+            onSaveRate={(browseRate) => updateActive((b) => ({ settings: { ...b.settings, browseRate } }))}
+            onBack={() => setView('home')}
           />
         )}
         {view === 'listen' && active && (

@@ -47,6 +47,7 @@ export default function HomeScreen({
   deletedBanks = 0,
   onOpenDeletedBanks,
   onListen,
+  onBrowse,
 }) {
   const { t } = useI18n()
   const fileRef = useRef(null)
@@ -197,6 +198,14 @@ export default function HomeScreen({
             <Tooltip text={t('info.exam')} className="block">
               <button type="button" className="btn btn-outline w-full" onClick={onExam}>
                 {t('home.exam')}
+              </button>
+            </Tooltip>
+            <Tooltip text={t('browse.help')} className="block sm:col-span-2">
+              <button type="button" className="btn btn-outline w-full" onClick={onBrowse}>
+                <svg viewBox="0 0 24 24" className="size-4" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+                  <path d="M2 6.5C4.5 5 7.5 5 12 7c4.5-2 7.5-2 10-.5V19c-2.5-1.5-5.5-1.5-10 .5-4.5-2-7.5-2-10-.5V6.5ZM12 7v12.5" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+                {t('browse.title')}
               </button>
             </Tooltip>
             <Tooltip text={t('listen.help')} className="block sm:col-span-2">

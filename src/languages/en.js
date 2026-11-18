@@ -13,6 +13,17 @@ export default {
     label: 'Stage {n} of {total} · {name}',
   },
   result: { passed: 'Passed', partial: 'Partly', failed: "Didn't know it", skipped: 'Skipped' },
+  browse: {
+    title: 'View questions and answers',
+    help: 'Every question with its answer, grouped by topic, to read at your own pace. You can hide the answers to test yourself.',
+    count: 'Showing {count} of {total} questions',
+    showAnswers: 'Show answers',
+    showKeyPoints: 'Show key points',
+    hiddenHelp: 'Answers hidden: think of the answer and tap the question to see it.',
+    reveal: 'Show answer',
+    hide: 'Hide',
+    listen: 'Listen to question {id} and its answer',
+  },
   listen: {
     title: 'Learn by listening',
     help: 'Like a playlist: you hear each question, get a few seconds to think of the answer and then hear it. It goes on to the next one by itself. Great for reviewing while commuting or walking.',
