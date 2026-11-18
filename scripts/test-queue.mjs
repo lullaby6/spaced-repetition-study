@@ -6,7 +6,7 @@ import { MAX_LEARNING, recordResult, startSession, countStatuses, resetQuestion,
 import { isQuestionActive } from '../src/lib/bank.js'
 import { buildChoice, CHOICE_OPTIONS, optionsToEliminate } from '../src/lib/exam.js'
 import { buildShareData, decodeShare, encodeShare } from '../src/lib/share.js'
-import { makeTrashId, restoreFromTrash, trashAllBanks, trashBank, trashProgress, trashQuestion } from '../src/lib/trash.js'
+import { makeTrashId, removeFromTrash, restoreFromTrash, trashAllBanks, trashBank, trashProgress, trashQuestion } from '../src/lib/trash.js'
 import { compareCopy, guessLanguage, isBlankCorrect, keywordRanges, suggestKeyPoints } from '../src/lib/text.js'
 
 // Voice language guess
@@ -250,6 +250,12 @@ assert.ok(next - Date.now() > 2.9 * 24 * 3600 * 1000, 'next review in 3 days')
   assert.equal(r3.library.activeId, 'B')
   assert.equal(r3.library.banks.length, 2)
   assert.equal(trashAllBanks(r3.library).length, r3.library.trash.length + 2)
+
+  // Deleting forever only removes the chosen items from the trash.
+  const before = lib3.trash.map((x) => x.id)
+  assert.deepEqual(removeFromTrash(lib3, 'tq2').trash.map((x) => x.id), before.filter((id) => id !== 'tq2'))
+  assert.deepEqual(removeFromTrash(lib3, before).trash, [])
+  assert.equal(removeFromTrash(lib3, before).banks.length, lib3.banks.length, 'banks untouched')
 }
 
 // Share link: what goes in comes out the same; a cut link fails clearly.

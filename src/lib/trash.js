@@ -1,6 +1,6 @@
-// Nothing is ever really deleted: deleted banks, deleted questions and reset progress are "taken
-// down" into `trash` (newest first) and can always be restored. Pure functions over the library
-// ({ banks, activeId, trash }).
+// Deleted banks, deleted questions and reset progress are "taken down" into `trash` (newest first)
+// and can be restored. They only disappear for good when the user deletes them from the trash
+// (removeFromTrash). Pure functions over the library ({ banks, activeId, trash }).
 import { newBankId } from './storage.js'
 
 // Callers can pick the id beforehand so an "Undo" button can restore exactly that item.
@@ -62,6 +62,12 @@ export function trashQuestion(library, bank, key, id) {
       sessionItem: bank.session?.queue.find((i) => i.key === key) ?? null,
     }, id),
   }
+}
+
+// Permanent deletion, only from the trash (the UI asks for confirmation first).
+export function removeFromTrash(library, trashItemIds) {
+  const ids = new Set(Array.isArray(trashItemIds) ? trashItemIds : [trashItemIds])
+  return { ...library, trash: (library.trash ?? []).filter((x) => !ids.has(x.id)) }
 }
 
 // Where a restored question goes: by its number, before the first question with a higher one, so the

@@ -8,7 +8,7 @@ import EditorScreen from './screens/EditorScreen.jsx'
 import HelpScreen from './screens/HelpScreen.jsx'
 import { shuffle } from './lib/text.js'
 import { buildChoice, DEFAULT_EXAM_SIZE, resolveExamSize } from './lib/exam.js'
-import { makeTrashId, restoreFromTrash, trashAllBanks, trashBank, trashBankCopy, trashProgress, trashQuestion } from './lib/trash.js'
+import { makeTrashId, removeFromTrash, restoreFromTrash, trashAllBanks, trashBank, trashBankCopy, trashProgress, trashQuestion } from './lib/trash.js'
 import TrashPanel from './components/TrashPanel.jsx'
 import { clearSharedDataFromUrl, decodeShare, sharedDataInUrl } from './lib/share.js'
 import ConfirmModal from './components/ConfirmModal.jsx'
@@ -429,6 +429,12 @@ export default function App() {
     }
     notify('success', t('toast.restored'))
   }
+  // The only permanent deletion: from the trash, after confirming.
+  const deleteForever = (ids) => {
+    setLibrary((lib) => removeFromTrash(lib, ids))
+    notify('success', t('toast.deletedForever', { count: ids.length }))
+  }
+
   // Trash window, optionally narrowed (e.g. only this bank's deleted questions).
   const openTrash = (filter = {}, titleKey = 'trash.title') => setModal({ kind: 'trash', payload: { filter, titleKey } })
   const trashCount = (types, bankId = null) =>
@@ -655,6 +661,7 @@ export default function App() {
             onReset={() => setModal({ kind: 'reset' })}
             trash={library.trash ?? []}
             onRestore={restoreTrash}
+            onDeleteForever={deleteForever}
           />
         )}
         {view === 'exam' && exam && (
@@ -735,7 +742,7 @@ export default function App() {
         {modal?.kind === 'trash' && (
           <div className="space-y-3">
             <p className="text-sm opacity-70">{t('trash.help')}</p>
-            <TrashPanel trash={library.trash ?? []} filter={modal.payload.filter} onRestore={restoreTrash} />
+            <TrashPanel trash={library.trash ?? []} filter={modal.payload.filter} onRestore={restoreTrash} onDeleteForever={deleteForever} />
           </div>
         )}
       </ConfirmModal>

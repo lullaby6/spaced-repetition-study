@@ -5,7 +5,7 @@ import ShareLinkCard from '../components/ShareLinkCard.jsx'
 
 // Export / import every bank with its progress as JSON, reset the active bank's progress, and the
 // trash with everything deleted or reset (always restorable).
-export default function DataScreen({ hasBank, library, onExport, onImport, onReset, trash, onRestore }) {
+export default function DataScreen({ hasBank, library, onExport, onImport, onReset, trash, onRestore, onDeleteForever }) {
   const { t } = useI18n()
   const fileRef = useRef(null)
 
@@ -49,7 +49,7 @@ export default function DataScreen({ hasBank, library, onExport, onImport, onRes
             </h2>
             <p className="text-sm opacity-70">{t('trash.help')}</p>
           </div>
-          <TrashPanel trash={trash} onRestore={onRestore} />
+          <TrashPanel trash={trash} onRestore={onRestore} onDeleteForever={onDeleteForever} />
         </div>
       </section>
     </div>
