@@ -1,15 +1,17 @@
 import { useRef } from 'react'
 import { useI18n } from '../i18n.jsx'
 import TrashPanel from '../components/TrashPanel.jsx'
+import ShareLinkCard from '../components/ShareLinkCard.jsx'
 
 // Export / import every bank with its progress as JSON, reset the active bank's progress, and the
 // trash with everything deleted or reset (always restorable).
-export default function DataScreen({ hasBank, onExport, onImport, onReset, trash, onRestore }) {
+export default function DataScreen({ hasBank, library, onExport, onImport, onReset, trash, onRestore }) {
   const { t } = useI18n()
   const fileRef = useRef(null)
 
   return (
     <div className="space-y-4">
+      <ShareLinkCard library={library} />
       <DataCard title={t('data.exportTitle')} text={t('data.exportHelp')}>
         <button type="button" className="btn btn-primary" onClick={onExport} disabled={!hasBank}>
           {t('data.export')}

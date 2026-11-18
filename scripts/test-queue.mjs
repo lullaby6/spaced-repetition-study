@@ -5,6 +5,7 @@ import { clozeToRaw, missingFields, parseBank, parseCloze, serializeBank } from 
 import { MAX_LEARNING, recordResult, startSession, countStatuses, resetQuestion, lastStudiedKey, removeFromSession, skipCurrent, lastSkipped, backToSkipped, jumpTo, excludeFromSession, includeInSession } from '../src/lib/queue.js'
 import { isQuestionActive } from '../src/lib/bank.js'
 import { buildChoice, CHOICE_OPTIONS, optionsToEliminate } from '../src/lib/exam.js'
+import { buildShareData, decodeShare, encodeShare } from '../src/lib/share.js'
 import { makeTrashId, restoreFromTrash, trashAllBanks, trashBank, trashProgress, trashQuestion } from '../src/lib/trash.js'
 import { compareCopy, guessLanguage, isBlankCorrect, keywordRanges, suggestKeyPoints } from '../src/lib/text.js'
 
@@ -249,6 +250,28 @@ assert.ok(next - Date.now() > 2.9 * 24 * 3600 * 1000, 'next review in 3 days')
   assert.equal(r3.library.activeId, 'B')
   assert.equal(r3.library.banks.length, 2)
   assert.equal(trashAllBanks(r3.library).length, r3.library.trash.length + 2)
+}
+
+// Share link: what goes in comes out the same; a cut link fails clearly.
+{
+  const library = { banks: [{ id: 'A', name: 'a.md', questions: bank, progress: { 1: { key: '1', stage: 2 } }, session: { queue: [] } }], activeId: 'A', trash: [{ id: 'x' }] }
+  const data = buildShareData(library)
+  assert.equal(data.banks[0].session, undefined, 'no sessions in the link')
+  assert.equal(data.trash, undefined, 'no trash in the link')
+  const encoded = await encodeShare(data)
+  assert.deepEqual(await decodeShare(encoded), data)
+  await assert.rejects(decodeShare(encoded.slice(0, encoded.length / 2)), 'a cut link does not decode')
+
+  // Size estimate for a realistic bank: 95 questions of varied text.
+  const words = text.replace(/[^\p{L}\s]/gu, ' ').split(/\s+/).filter(Boolean)
+  const pick = (n, seed) => Array.from({ length: n }, (_, i) => words[(seed * 31 + i * 17) % words.length]).join(' ')
+  const big = Array.from({ length: 95 }, (_, i) => ({
+    id: i + 1, key: String(i + 1), topic: `Tema ${i % 11}`, question: `${pick(12, i)}?`, answer: pick(70, i + 100),
+    keyPoints: [pick(6, i + 1), pick(6, i + 2), pick(6, i + 3), pick(6, i + 4)],
+    cloze: { text: `${pick(10, i + 5)} {{0}} ${pick(8, i + 6)} {{1}}`, blanks: [pick(1, i + 7), pick(1, i + 8)] }, hints: [pick(5, i + 9)],
+  }))
+  const size = (await encodeShare(buildShareData({ banks: [{ id: 'B', name: 'b.md', questions: big, progress: {} }], activeId: 'B' }))).length
+  console.log(`  share link for 95 questions: ~${size} characters`)
 }
 
 // Editing: a bank written back to .md parses to the same questions.

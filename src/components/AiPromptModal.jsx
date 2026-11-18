@@ -1,21 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
 import { useI18n } from '../i18n.jsx'
 import ConfirmModal from './ConfirmModal.jsx'
+import { copyText } from '../lib/clipboard.js'
 
 const FEEDBACK_MS = 2000
-
-async function copyText(text, fallbackEl) {
-  try {
-    await navigator.clipboard.writeText(text)
-    return true
-  } catch {
-    // Older browsers or non-secure contexts: select the textarea and use the legacy command.
-    if (!fallbackEl) return false
-    fallbackEl.focus()
-    fallbackEl.select()
-    return document.execCommand?.('copy') ?? false
-  }
-}
 
 // Shows the prompt to paste into an AI chat so it turns a PDF / book / notes into a question bank.
 export default function AiPromptModal({ open, onClose }) {

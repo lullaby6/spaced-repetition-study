@@ -10,6 +10,7 @@ import { shuffle } from './lib/text.js'
 import { buildChoice, DEFAULT_EXAM_SIZE, resolveExamSize } from './lib/exam.js'
 import { makeTrashId, restoreFromTrash, trashAllBanks, trashBank, trashBankCopy, trashProgress, trashQuestion } from './lib/trash.js'
 import TrashPanel from './components/TrashPanel.jsx'
+import { clearSharedDataFromUrl, decodeShare, sharedDataInUrl } from './lib/share.js'
 import ConfirmModal from './components/ConfirmModal.jsx'
 import AiPromptModal from './components/AiPromptModal.jsx'
 import RenameModal from './components/RenameModal.jsx'
@@ -56,6 +57,27 @@ export default function App() {
   useEffect(() => {
     window.scrollTo({ top: 0 })
   }, [view])
+
+  // Opening a link made with "Move to another device": offer to import what it carries.
+  useEffect(() => {
+    const check = async () => {
+      const encoded = sharedDataInUrl()
+      if (!encoded) return
+      clearSharedDataFromUrl()
+      try {
+        const data = await decodeShare(encoded)
+        if (!isValidBackup(data)) throw new Error('invalid')
+        setView('home')
+        setModal({ kind: 'import', payload: data })
+      } catch {
+        setToast({ type: 'error', text: t('share.invalidLink'), at: Date.now() })
+      }
+    }
+    check()
+    window.addEventListener('hashchange', check)
+    return () => window.removeEventListener('hashchange', check)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   // Everything below works on the active bank.
   const active = library.banks.find((b) => b.id === library.activeId) || null
@@ -627,6 +649,7 @@ export default function App() {
         {view === 'data' && (
           <DataScreen
             hasBank={!!active}
+            library={library}
             onExport={exportData}
             onImport={importData}
             onReset={() => setModal({ kind: 'reset' })}
