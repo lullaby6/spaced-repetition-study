@@ -6,7 +6,7 @@ const SIDES = { top: 'tooltip-top', bottom: 'tooltip-bottom', left: 'tooltip-lef
 
 export default function Tooltip({ text, side = 'top', className = '', children }) {
   return (
-    <span className={`tooltip ${SIDES[side]} before:max-w-56 before:text-balance ${className}`} data-tip={text}>
+    <span className={`tooltip ${SIDES[side]} before:max-w-56 before:whitespace-normal before:text-balance ${className}`} data-tip={text}>
       {children}
     </span>
   )
@@ -92,7 +92,8 @@ export function InfoTip({ text }) {
           ref={bubbleRef}
           id={id}
           role="tooltip"
-          className="fixed z-50 block w-max max-w-72 rounded-field bg-neutral px-3 py-2 text-left text-sm leading-snug text-neutral-content shadow-lg"
+          // whitespace-normal etc.: don't inherit nowrap, bold or uppercase from where the ⓘ sits (e.g. table headers)
+          className="fixed z-50 block w-max max-w-[min(18rem,calc(100vw-1.5rem))] whitespace-normal break-words rounded-field bg-neutral px-3 py-2 text-left text-sm font-normal normal-case leading-snug tracking-normal text-neutral-content shadow-lg"
           style={pos ? { left: pos.left, top: pos.top } : { left: 0, top: 0, visibility: 'hidden' }}
         >
           {text}

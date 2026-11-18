@@ -38,12 +38,27 @@ function isLibrary(data) {
   return data && Array.isArray(data.banks)
 }
 
+// Older versions marked a question "learning" as soon as it entered the queue, even if it was never
+// answered. Those are really still new.
+function fixUnansweredLearning(library) {
+  return {
+    ...library,
+    banks: library.banks.map((bank) => {
+      const progress = { ...bank.progress }
+      for (const [key, p] of Object.entries(progress)) {
+        if (p?.status === 'learning' && !p.attempts) progress[key] = { ...p, status: 'new', stage: 1 }
+      }
+      return { ...bank, progress }
+    }),
+  }
+}
+
 export function loadState() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY)
     if (raw) {
       const data = JSON.parse(raw)
-      if (isLibrary(data)) return data
+      if (isLibrary(data)) return fixUnansweredLearning(data)
     }
     const legacy = localStorage.getItem(LEGACY_STORAGE_KEY)
     if (legacy) return fromSingleBank(JSON.parse(legacy))

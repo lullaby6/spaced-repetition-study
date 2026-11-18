@@ -8,6 +8,8 @@ export default function SetupScreen({ purpose, topics, settings, hasSession, onS
   const [selected, setSelected] = useState(() => new Set(settings.topics || topics))
   const [order, setOrder] = useState(settings.order)
   const [newPerSession, setNewPerSession] = useState(settings.newPerSession)
+  const [examMode, setExamMode] = useState(settings.examMode || 'choice') // 'choice' | 'write'
+  const [examOrder, setExamOrder] = useState(settings.examOrder || 'random') // 'random' | 'bank'
   const isExam = purpose === 'exam'
 
   const toggle = (topic) =>
@@ -24,6 +26,8 @@ export default function SetupScreen({ purpose, topics, settings, hasSession, onS
       topics: chosen.length === topics.length ? null : chosen,
       order,
       newPerSession: Math.max(1, Math.min(500, Number(newPerSession) || 15)),
+      examMode,
+      examOrder,
     })
   }
 
@@ -32,6 +36,42 @@ export default function SetupScreen({ purpose, topics, settings, hasSession, onS
       <div className="card-body gap-5 p-4 sm:p-6">
         <h2 className="card-title">{isExam ? t('setup.examTitle') : t('setup.title')}</h2>
         {isExam && <p className="opacity-70">{t('setup.examHelp')}</p>}
+
+        {isExam && (
+          <fieldset className="space-y-2">
+            <legend className="font-semibold">{t('setup.examMode')}</legend>
+            <div className="grid gap-2 sm:grid-cols-2">
+              {['choice', 'write'].map((mode) => (
+                <label
+                  key={mode}
+                  className={`flex cursor-pointer items-start gap-3 rounded-box border-2 p-3 ${examMode === mode ? 'border-primary bg-primary/5' : 'border-base-300'}`}
+                >
+                  <input type="radio" name="exam-mode" className="radio radio-primary radio-sm mt-0.5" checked={examMode === mode} onChange={() => setExamMode(mode)} />
+                  <span>
+                    <span className="block font-medium">{t(`setup.examMode_${mode}`)}</span>
+                    <span className="block text-sm opacity-70">{t(`setup.examModeHelp_${mode}`)}</span>
+                  </span>
+                </label>
+              ))}
+            </div>
+          </fieldset>
+        )}
+
+        {isExam && (
+          <fieldset className="space-y-2">
+            <legend className="font-semibold">
+              {t('setup.examOrder')} <InfoTip text={t('info.examOrder')} />
+            </legend>
+            <div className="flex flex-wrap gap-4">
+              {['random', 'bank'].map((value) => (
+                <label key={value} className="flex min-h-11 cursor-pointer items-center gap-2">
+                  <input type="radio" name="exam-order" className="radio radio-primary radio-sm" checked={examOrder === value} onChange={() => setExamOrder(value)} />
+                  {t(`setup.examOrder_${value}`)}
+                </label>
+              ))}
+            </div>
+          </fieldset>
+        )}
 
         <fieldset className="space-y-2">
           <div className="flex flex-wrap items-center justify-between gap-2">

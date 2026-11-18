@@ -42,19 +42,18 @@ function countLearning(queue) {
 }
 
 // Rule 4.2: a new question enters while there is room (max 6 learning) and the session limit allows it.
+// Entering the queue does not change its status: it stays "new" until it is first answered.
 function refill(session, progress) {
   const queue = [...session.queue]
   const pending = [...session.pendingNew]
   let introduced = session.newIntroduced
-  const nextProgress = { ...progress }
   while (countLearning(queue) < MAX_LEARNING && introduced < session.newLimit && pending.length) {
     const key = pending.shift()
-    if (nextProgress[key]?.status !== 'new') continue
-    nextProgress[key] = { ...nextProgress[key], status: 'learning', stage: 1 }
+    if ((progress[key]?.status ?? 'new') !== 'new') continue
     queue.push({ key, stage: 1, kind: 'learn' })
     introduced++
   }
-  return { session: { ...session, queue, pendingNew: pending, newIntroduced: introduced }, progress: nextProgress }
+  return { session: { ...session, queue, pendingNew: pending, newIntroduced: introduced }, progress }
 }
 
 function interleave(a, b) {
@@ -158,12 +157,20 @@ export function recordResult(session, progress, result, response = null) {
   return refill(nextSession, { ...progress, [item.key]: p })
 }
 
-// Puts one question back to "new" and takes it out of the current session (if any).
-// Returns the new progress and session; the session becomes null when nothing is left in it.
+// Puts one question back to "new". If it was in the current session it starts over there (it goes
+// first in line to come back at stage 1, without using up another new-question slot); other
+// questions are not pulled in. Returns the new progress and session (null when nothing is left).
 export function resetQuestion(session, progress, key) {
   const nextProgress = { ...progress, [key]: initialProgress(key) }
   if (!session) return { session: null, progress: nextProgress }
-  const trimmed = { ...session, queue: session.queue.filter((i) => i.key !== key) }
+  const wasQueued = session.queue.some((i) => i.key === key)
+  if (!wasQueued) return { session, progress: nextProgress }
+  const trimmed = {
+    ...session,
+    queue: session.queue.filter((i) => i.key !== key),
+    pendingNew: [key, ...session.pendingNew.filter((k) => k !== key)],
+    newIntroduced: Math.max(0, session.newIntroduced - 1),
+  }
   const r = refill(trimmed, nextProgress)
   return { session: r.session.queue.length ? r.session : null, progress: r.progress }
 }

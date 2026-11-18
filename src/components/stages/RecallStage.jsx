@@ -3,6 +3,7 @@ import { useI18n } from '../../i18n.jsx'
 import { useEnterHotkey } from '../../hooks/useHotkey.js'
 import { suggestKeyPoints } from '../../lib/text.js'
 import ResultPanel, { AnswerBox } from '../ResultPanel.jsx'
+import { InfoTip } from '../Tooltip.jsx'
 
 export function recallResult(ratio) {
   if (ratio >= 1) return 'passed'
@@ -10,13 +11,44 @@ export function recallResult(ratio) {
   return 'failed'
 }
 
+// Hints the written mock exam can ask for, one at a time.
+export const WRITE_HINT_LEVELS = ['hints', 'keywords', 'starts', 'summary']
+const START_WORDS = 2
+
+// A blank word with only its first letter shown: "evaporación" → "e__________" (spaces are kept).
+function maskWord(word) {
+  return Array.from(word, (c, i) => (i === 0 || c === ' ' ? c : '_')).join('')
+}
+
+// The cloze summary of the answer with every blank half covered (last and strongest hint).
+function MaskedSummary({ cloze }) {
+  return cloze.text.split(/\{\{(\d+)\}\}/).map((piece, i) =>
+    i % 2 === 0 ? (
+      piece
+    ) : (
+      <span key={i} className="rounded bg-info/15 px-1 font-mono font-semibold tracking-wider">
+        {maskWord(cloze.blanks[Number(piece)] ?? '')}
+      </span>
+    ),
+  )
+}
+
+// First words of a key point, as a cue: "Indigencia → ingresos suficientes" → "Indigencia →…".
+function keyPointStart(point) {
+  const words = point.split(/\s+/)
+  return words.length > START_WORDS ? `${words.slice(0, START_WORDS).join(' ')}…` : `${words[0]}…`
+}
+
 // Stages 3 (with hints) and 4 (no help): write the key points, then self-assess with a checklist.
-// Also used by the mock exam, where `outcomeFor` is null and progress is not affected.
-export default function RecallStage({ question, withHints, outcomeFor, practice, onDone, onRetry }) {
+// Also used by the mock exam, where `outcomeFor` is null and progress is not affected; there
+// `askHints` lets the user reveal help step by step (WRITE_HINT_LEVELS), recorded as hintsUsed.
+export default function RecallStage({ question, withHints, askHints = false, outcomeFor, practice, onDone, onRetry }) {
   const { t } = useI18n()
   const [typed, setTyped] = useState('')
   const [phase, setPhase] = useState('writing') // writing | comparing | gaveUp
   const [ticked, setTicked] = useState(() => question.keyPoints.map(() => false))
+  const [hintLevel, setHintLevel] = useState(0)
+  const nextHint = WRITE_HINT_LEVELS[hintLevel]
   const suggested = useMemo(
     () => (phase === 'writing' ? [] : suggestKeyPoints(question.keyPoints, typed)),
     [phase, question.keyPoints, typed],
@@ -29,10 +61,64 @@ export default function RecallStage({ question, withHints, outcomeFor, practice,
   const ratio = phase === 'gaveUp' ? 0 : count / total
   const result = recallResult(ratio)
   const showFullAnswer = !withHints || phase === 'gaveUp'
-  const record = { result, ratio, response: { typed, ticked, gaveUp: phase === 'gaveUp' } }
+  const record = { result, ratio, response: { typed, ticked, gaveUp: phase === 'gaveUp', hintsUsed: hintLevel } }
 
   return (
     <div className="space-y-4">
+      {askHints && phase === 'writing' && (
+        <div className="flex items-center justify-end gap-1">
+          <button type="button" className="btn btn-outline btn-warning btn-sm" onClick={() => setHintLevel((l) => l + 1)} disabled={!nextHint}>
+            <svg viewBox="0 0 24 24" className="size-4" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+              <path d="M9 18h6m-5 3h4M12 3a6 6 0 0 0-3.6 10.8c.7.5 1.1 1.3 1.1 2.2h5c0-.9.4-1.7 1.1-2.2A6 6 0 0 0 12 3Z" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+            {nextHint ? t(`writeHints.${nextHint}`) : t('choice.noMoreHints')}
+            <span className="badge badge-warning badge-sm">
+              {hintLevel}/{WRITE_HINT_LEVELS.length}
+            </span>
+          </button>
+          <InfoTip text={t('info.writeHints')} />
+        </div>
+      )}
+
+      {askHints && hintLevel >= 1 && (
+        <div className="rounded-box border border-info/30 bg-info/5 p-3 text-sm">
+          <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-info">{t('stages.recall.hints')}</div>
+          <ul className="list-inside list-disc space-y-0.5">
+            {question.hints.map((h, i) => (
+              <li key={i}>{h}</li>
+            ))}
+          </ul>
+          {hintLevel >= 2 && (
+            <div className="mt-2 flex flex-wrap items-center gap-1">
+              <span className="text-xs font-semibold uppercase tracking-wide text-info">{t('choice.keywords')}</span>
+              {question.cloze.blanks.map((w, i) => (
+                <span key={i} className="badge badge-info badge-soft badge-sm">
+                  {w}
+                </span>
+              ))}
+            </div>
+          )}
+          {hintLevel >= 3 && (
+            <div className="mt-2">
+              <div className="text-xs font-semibold uppercase tracking-wide text-info">{t('writeHints.startsTitle')}</div>
+              <ul className="list-inside list-disc space-y-0.5">
+                {question.keyPoints.map((p, i) => (
+                  <li key={i}>{keyPointStart(p)}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+          {hintLevel >= 4 && (
+            <div className="mt-2">
+              <div className="text-xs font-semibold uppercase tracking-wide text-info">{t('writeHints.summaryTitle')}</div>
+              <p className="leading-relaxed">
+                <MaskedSummary cloze={question.cloze} />
+              </p>
+            </div>
+          )}
+        </div>
+      )}
+
       {withHints && (
         <div className="rounded-box border border-info/30 bg-info/5 p-4">
           <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-info">{t('stages.recall.hints')}</div>
@@ -118,11 +204,12 @@ export default function RecallStage({ question, withHints, outcomeFor, practice,
           <ResultPanel
             focusNext={false}
             result={result}
-            detail={
-              phase === 'gaveUp'
-                ? null
-                : t('stages.recall.score', { count, total, pct: Math.round(ratio * 100) })
-            }
+            detail={[
+              phase === 'gaveUp' ? null : t('stages.recall.score', { count, total, pct: Math.round(ratio * 100) }),
+              hintLevel ? t('choice.hintsUsed', { count: hintLevel }) : null,
+            ]
+              .filter(Boolean)
+              .join(' · ') || null}
             outcome={outcomeFor ? outcomeFor(result) : null}
             answer={question.answer}
             keywords={question.cloze.blanks}

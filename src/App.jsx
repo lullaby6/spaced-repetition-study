@@ -6,6 +6,7 @@ import { buildBackup, createBank, DEFAULT_SETTINGS, downloadJson, downloadText, 
 import { parseCloze, serializeBank } from './lib/parser.js'
 import EditorScreen from './screens/EditorScreen.jsx'
 import { shuffle } from './lib/text.js'
+import { buildChoice } from './lib/exam.js'
 import ConfirmModal from './components/ConfirmModal.jsx'
 import AiPromptModal from './components/AiPromptModal.jsx'
 import RenameModal from './components/RenameModal.jsx'
@@ -182,10 +183,21 @@ export default function App() {
 
   // ---- Mock exam ----
   const beginExam = (examSettings) => {
+    const mode = examSettings.examMode || 'write'
+    const order = examSettings.examOrder || 'random'
     const pool = activeQuestions.filter((q) => !examSettings.topics || examSettings.topics.includes(q.topic))
-    const keys = shuffle(pool.map((q) => q.key)).slice(0, EXAM_SIZE)
+    // The questions are always a random pick; 'bank' only shows them in the bank's numbering.
+    let keys = shuffle(pool.map((q) => q.key)).slice(0, EXAM_SIZE)
+    if (order === 'bank') {
+      const position = new Map(bank.map((q, i) => [q.key, i]))
+      keys = keys.sort((a, b) => position.get(a) - position.get(b))
+    }
     if (!keys.length) return notify('info', t('toast.nothingToStudy'))
-    setExam({ keys, index: 0, results: [], topics: examSettings.topics })
+    // Multiple choice: wrong options come from every active question of the bank, not only the chosen topics.
+    if (mode === 'choice' && activeQuestions.length < 2) return notify('info', t('toast.choiceNeedsMore'))
+    const options = mode === 'choice' ? Object.fromEntries(keys.map((k) => [k, buildChoice(bankByKey.get(k), activeQuestions)])) : null
+    updateActive((b) => ({ settings: { ...b.settings, examMode: mode, examOrder: order } }))
+    setExam({ keys, index: 0, results: [], topics: examSettings.topics, mode, order, options })
     setView('exam')
   }
 
@@ -443,7 +455,7 @@ export default function App() {
             exam={exam}
             bankByKey={bankByKey}
             onHome={() => setView('home')}
-            onRetry={() => beginExam({ topics: exam.topics })}
+            onRetry={() => beginExam({ topics: exam.topics, examMode: exam.mode, examOrder: exam.order })}
           />
         )}
 

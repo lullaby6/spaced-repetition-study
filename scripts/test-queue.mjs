@@ -4,6 +4,7 @@ import { readFile } from 'node:fs/promises'
 import { clozeToRaw, missingFields, parseBank, parseCloze, serializeBank } from '../src/lib/parser.js'
 import { MAX_LEARNING, recordResult, startSession, countStatuses, resetQuestion, lastStudiedKey, removeFromSession } from '../src/lib/queue.js'
 import { isQuestionActive } from '../src/lib/bank.js'
+import { buildChoice, CHOICE_OPTIONS, optionsToEliminate } from '../src/lib/exam.js'
 import { compareCopy, guessLanguage, isBlankCorrect, keywordRanges, suggestKeyPoints } from '../src/lib/text.js'
 
 // Voice language guess
@@ -84,7 +85,17 @@ const passedReview = recordResult(review.session, review.progress, 'passed')
 const next = new Date(passedReview.progress[review.session.queue[0].key].nextReview)
 assert.ok(next - Date.now() > 2.9 * 24 * 3600 * 1000, 'next review in 3 days')
 
-// Resetting one question: back to new, out of the session, and a new question fills the slot.
+// Questions waiting in the queue stay "new" until they are first answered.
+{
+  const { session: s, progress: p } = startSession(bank, {}, settings)
+  assert.equal(s.queue.length, MAX_LEARNING)
+  assert.ok(s.queue.every((i) => p[i.key].status === 'new'), 'queued but unanswered → still new')
+  const after = recordResult(s, p, 'passed')
+  assert.equal(after.progress['1'].status, 'learning', 'answered → learning')
+  assert.equal(after.progress['2'].status, 'new')
+}
+
+// Resetting one question: back to new; in a session it starts over itself, no other question is pulled in.
 {
   let { session: s, progress: p } = startSession(bank, {}, settings)
   ;({ session: s, progress: p } = recordResult(s, p, 'passed')) // question 1, stage 1
@@ -94,10 +105,18 @@ assert.ok(next - Date.now() > 2.9 * 24 * 3600 * 1000, 'next review in 3 days')
   const reset = resetQuestion(s, p, '2')
   assert.equal(reset.progress['2'].status, 'new')
   assert.equal(reset.progress['2'].attempts, 0)
-  assert.ok(!reset.session.queue.some((i) => i.key === '2'), 'removed from the queue')
-  assert.equal(new Set(reset.session.queue.map((i) => i.key)).size, MAX_LEARNING, 'slot refilled')
+  assert.deepEqual(reset.session.queue.filter((i) => i.key === '2'), [{ key: '2', stage: 1, kind: 'learn' }], 'back at stage 1')
+  assert.deepEqual(
+    [...new Set(reset.session.queue.map((i) => i.key))].sort(),
+    [...new Set(s.queue.map((i) => i.key))].sort(),
+    'same questions in the session: none pulled in',
+  )
+  assert.equal(reset.session.newIntroduced, s.newIntroduced, 'no extra new-question slot used')
+  const statuses = Object.values(reset.progress).filter((x) => x.status !== 'new').map((x) => x.key)
+  assert.deepEqual(statuses, ['1'], 'only the answered one shows progress')
   assert.equal(lastStudiedKey(reset.progress), '1', 'stepping back goes to the previous one')
   assert.equal(resetQuestion(null, p, '1').session, null)
+  assert.equal(resetQuestion(s, p, '30').session, s, 'resetting one outside the session leaves it as is')
 }
 
 // Turning questions off: they leave the session (and the new-question list) but keep their progress.
@@ -110,6 +129,25 @@ assert.ok(next - Date.now() > 2.9 * 24 * 3600 * 1000, 'next review in 3 days')
   assert.equal(new Set(after.queue.map((i) => i.key)).size, MAX_LEARNING, 'slot refilled with the next new one')
   assert.equal(p['1'].stage, 2, 'progress untouched')
   assert.ok(isQuestionActive({ topic: 'A' }) && !isQuestionActive({ topic: 'A', disabled: true }) && !isQuestionActive({ topic: 'A' }, ['A']))
+}
+
+// Multiple choice: right answer included, no repeated answers, same topic preferred, ruling out leaves ≥ 2.
+{
+  const pool = Array.from({ length: 10 }, (_, i) => ({ key: `k${i}`, topic: i < 5 ? 'A' : 'B', answer: `respuesta ${i}` }))
+  pool.push({ key: 'dup', topic: 'A', answer: 'Respuesta 0' }) // same text as k0 once normalized
+  for (let run = 0; run < 50; run++) {
+    const options = buildChoice(pool[0], pool)
+    assert.equal(options.length, CHOICE_OPTIONS)
+    assert.ok(options.includes('k0'))
+    assert.ok(!options.includes('dup'), 'an answer identical to the right one is never an option')
+    assert.equal(new Set(options).size, options.length)
+    assert.ok(options.filter((k) => k !== 'k0').every((k) => Number(k.slice(1)) < 5), 'same topic first when there are enough')
+    const gone = optionsToEliminate(options, 'k0')
+    assert.ok(!gone.includes('k0'))
+    assert.equal(options.length - gone.length, 2, 'four options → two left')
+  }
+  assert.equal(buildChoice(pool[0], pool.slice(0, 2)).length, 2, 'small banks give fewer options')
+  assert.deepEqual(optionsToEliminate(['a', 'b'], 'a'), [], 'never below two options')
 }
 
 // Editing: a bank written back to .md parses to the same questions.

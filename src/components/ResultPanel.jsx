@@ -13,6 +13,7 @@ const STYLES = {
 // `onRetry` adds a "try again" button; `practice` marks a retry whose result is not recorded.
 export default function ResultPanel({
   result,
+  label = null,
   outcome,
   detail,
   answer,
@@ -38,7 +39,7 @@ export default function ResultPanel({
     <div className="space-y-3">
       <div role="status" className={`alert ${STYLES[result]} items-start`}>
         <div>
-          <div className="font-bold">{t(`result.${result}`)}</div>
+          <div className="font-bold">{label || t(`result.${result}`)}</div>
           {detail && <div className="text-sm">{detail}</div>}
           {practice && <div className="text-sm font-medium">{t('exercise.practiceNote')}</div>}
           {outcomeText && <div className="text-sm opacity-90">{outcomeText}</div>}

@@ -6,17 +6,37 @@ import { blankStyle } from './stages/ClozeStage.jsx'
 const RESULT_STYLES = { passed: 'alert-success', partial: 'alert-warning', failed: 'alert-error' }
 
 // Read-only view of an exercise already answered: what was typed, the result and the full answer.
-export default function PastExercise({ question, entry }) {
+// `entry.stage` is 1-4, or 'choice' for a multiple choice mock exam question (needs `bankByKey`).
+export default function PastExercise({ question, entry, bankByKey }) {
   const { t } = useI18n()
   const response = entry.response
+  const isChoice = entry.stage === 'choice'
+  const label = isChoice ? t(entry.result === 'passed' ? 'choice.right' : 'choice.wrong') : t(`result.${entry.result}`)
 
   return (
     <div className="space-y-4">
       <div role="status" className={`alert ${RESULT_STYLES[entry.result]}`}>
-        <span className="font-bold">{t(`result.${entry.result}`)}</span>
+        <span className="font-bold">{label}</span>
+        {isChoice && response?.hintsUsed > 0 && <span className="text-sm">{t('choice.hintsUsed', { count: response.hintsUsed })}</span>}
       </div>
 
       {!response && <p className="text-sm italic opacity-60">{t('history.noResponse')}</p>}
+      {response && isChoice && (
+        <ul className="space-y-2">
+          {response.options.map((key) => {
+            const isRight = key === question.key
+            const isChosen = key === response.chosen
+            return (
+              <li
+                key={key}
+                className={`rounded-box border-2 p-3 ${isRight ? 'border-success bg-success/10' : isChosen ? 'border-error bg-error/10' : 'border-base-300 opacity-60'}`}
+              >
+                {bankByKey?.get(key)?.answer}
+              </li>
+            )
+          })}
+        </ul>
+      )}
       {response && entry.stage === 1 && <TypedBox text={response.typed} />}
       {response && entry.stage === 2 && <ClozeReview question={question} response={response} />}
       {response && entry.stage >= 3 && (
@@ -36,7 +56,7 @@ export default function PastExercise({ question, entry }) {
         </div>
       )}
 
-      <AnswerBox answer={question.answer} keywords={question.cloze.blanks} />
+      {!isChoice && <AnswerBox answer={question.answer} keywords={question.cloze.blanks} />}
     </div>
   )
 }
