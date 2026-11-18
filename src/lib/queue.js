@@ -168,6 +168,20 @@ export function resetQuestion(session, progress, key) {
   return { session: r.session.queue.length ? r.session : null, progress: r.progress }
 }
 
+// Takes questions out of the current session (e.g. when they are deactivated), keeping their progress.
+// Returns the new session, or null when nothing is left in it.
+export function removeFromSession(session, progress, keys) {
+  if (!session) return null
+  const gone = new Set(keys)
+  const trimmed = {
+    ...session,
+    queue: session.queue.filter((i) => !gone.has(i.key)),
+    pendingNew: session.pendingNew.filter((k) => !gone.has(k)),
+  }
+  const r = refill(trimmed, progress)
+  return r.session.queue.length ? r.session : null
+}
+
 // The question with progress that was answered most recently, or null.
 export function lastStudiedKey(progress) {
   let best = null

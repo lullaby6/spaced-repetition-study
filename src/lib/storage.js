@@ -13,8 +13,9 @@ export function newBankId() {
   return globalThis.crypto?.randomUUID?.() ?? `bank-${Date.now()}-${Math.random().toString(36).slice(2)}`
 }
 
-export function createBank({ name, questions, warnings = [], progress = {}, settings = DEFAULT_SETTINGS, session = null }) {
-  return { id: newBankId(), name, questions, warnings, progress, settings: { ...DEFAULT_SETTINGS, ...settings }, session }
+// `disabledTopics` lists the topics turned off in this bank; single questions use `question.disabled`.
+export function createBank({ name, questions, warnings = [], progress = {}, settings = DEFAULT_SETTINGS, session = null, disabledTopics = [] }) {
+  return { id: newBankId(), name, questions, warnings, progress, settings: { ...DEFAULT_SETTINGS, ...settings }, session, disabledTopics }
 }
 
 export const EMPTY_LIBRARY = { banks: [], activeId: null }

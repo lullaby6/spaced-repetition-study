@@ -27,6 +27,8 @@ export default function HomeScreen({
   banks,
   activeBank,
   topics,
+  disabledTopics,
+  inactiveCount,
   counts,
   hasSession,
   dueReviews,
@@ -126,7 +128,10 @@ export default function HomeScreen({
                 </Tooltip>
               </div>
             </div>
-            <p className="text-lg">{t('home.summary', { questions: bank.length, topics: topics.length })}</p>
+            <p className="text-lg">
+              {t('home.summary', { questions: bank.length, topics: topics.length })}
+              {inactiveCount > 0 && <span className="text-base opacity-60"> · {t('home.inactive', { count: inactiveCount })}</span>}
+            </p>
           </div>
 
           <details className="collapse collapse-arrow border border-base-300 bg-base-200/50">
@@ -134,7 +139,7 @@ export default function HomeScreen({
             <div className="collapse-content">
               <ul className="space-y-1 text-sm">
                 {topics.map((topic) => (
-                  <li key={topic} className="flex justify-between gap-4">
+                  <li key={topic} className={`flex justify-between gap-4 ${disabledTopics.includes(topic) ? 'line-through opacity-50' : ''}`}>
                     <span>{topic}</span>
                     <span className="opacity-60">{bank.filter((q) => q.topic === topic).length}</span>
                   </li>

@@ -2,6 +2,7 @@ import { useMemo, useRef, useState } from 'react'
 import { useI18n } from '../i18n.jsx'
 import { clozeToRaw, missingFields, parseCloze } from '../lib/parser.js'
 import { normalize } from '../lib/text.js'
+import { isQuestionActive } from '../lib/bank.js'
 import Tooltip, { InfoTip } from '../components/Tooltip.jsx'
 
 const toLines = (text) =>
@@ -21,22 +22,41 @@ function formFrom(question) {
   }
 }
 
-// Editor for the active bank: edit every field of a question, add new ones or delete them.
-export default function EditorScreen({ bankName, bank, topics, onSave, onDelete, onDownload, onBack }) {
+// Editor for the active bank: edit every field of a question, add new ones, delete them, and turn
+// questions or whole topics on and off (off = kept, but left out of sessions, reviews and exams).
+export default function EditorScreen({
+  bankName,
+  bank,
+  topics,
+  disabledTopics,
+  onSave,
+  onDelete,
+  onToggleQuestion,
+  onToggleTopic,
+  onDownload,
+  onBack,
+}) {
   const { t } = useI18n()
   const [search, setSearch] = useState('')
   const [topic, setTopic] = useState('')
+  const [state, setState] = useState('') // '' | 'active' | 'inactive'
   const [editing, setEditing] = useState(null) // question key, 'new', or null
   const [confirmDelete, setConfirmDelete] = useState(null)
 
   const rows = useMemo(() => {
     const needle = normalize(search)
-    return bank.filter(
-      (q) =>
+    return bank.filter((q) => {
+      const active = isQuestionActive(q, disabledTopics)
+      return (
         (!topic || q.topic === topic) &&
-        (!needle || normalize(`${q.id} ${q.question} ${q.answer} ${q.topic}`).includes(needle)),
-    )
-  }, [bank, search, topic])
+        (!state || (state === 'active') === active) &&
+        (!needle || normalize(`${q.id} ${q.question} ${q.answer} ${q.topic}`).includes(needle))
+      )
+    })
+  }, [bank, disabledTopics, search, topic, state])
+
+  const perTopic = (tp) => bank.filter((q) => q.topic === tp).length
+  const activeCount = bank.filter((q) => isQuestionActive(q, disabledTopics)).length
 
   return (
     <div className="space-y-4">
@@ -47,6 +67,7 @@ export default function EditorScreen({ bankName, bank, topics, onSave, onDelete,
               <h2 className="card-title">{t('editor.title')}</h2>
               <p className="break-all text-sm opacity-70">
                 {bankName} · {t('editor.count', { count: bank.length })}
+                {activeCount < bank.length && <> · {t('editor.activeCount', { count: activeCount })}</>}
               </p>
             </div>
             <div className="flex flex-wrap gap-2">
@@ -66,7 +87,33 @@ export default function EditorScreen({ bankName, bank, topics, onSave, onDelete,
               </button>
             </div>
           </div>
-          <div className="grid gap-2 sm:grid-cols-2">
+          <details className="collapse collapse-arrow border border-base-300 bg-base-200/50">
+            <summary className="collapse-title min-h-0 py-3 font-medium">
+              {t('editor.topicsTitle')}{' '}
+              <span className="text-sm font-normal opacity-60">
+                {t('editor.topicsActive', { active: topics.length - disabledTopics.filter((x) => topics.includes(x)).length, total: topics.length })}
+              </span>
+            </summary>
+            <div className="collapse-content">
+              <p className="mb-2 text-sm opacity-70">{t('editor.topicsHelp')}</p>
+              <ul className="space-y-1">
+                {topics.map((tp) => {
+                  const on = !disabledTopics.includes(tp)
+                  return (
+                    <li key={tp}>
+                      <label className="flex min-h-11 cursor-pointer items-center gap-3 rounded-box px-2 hover:bg-base-200">
+                        <input type="checkbox" className="toggle toggle-primary toggle-sm" checked={on} onChange={() => onToggleTopic(tp)} />
+                        <span className={`flex-1 ${on ? '' : 'line-through opacity-50'}`}>{tp}</span>
+                        <span className="text-sm opacity-60">{perTopic(tp)}</span>
+                      </label>
+                    </li>
+                  )
+                })}
+              </ul>
+            </div>
+          </details>
+
+          <div className="grid gap-2 sm:grid-cols-3">
             <input
               type="search"
               className="input input-bordered w-full"
@@ -82,6 +129,11 @@ export default function EditorScreen({ bankName, bank, topics, onSave, onDelete,
                   {tp}
                 </option>
               ))}
+            </select>
+            <select className="select select-bordered w-full" value={state} onChange={(e) => setState(e.target.value)} aria-label={t('editor.stateFilter')}>
+              <option value="">{t('editor.allStates')}</option>
+              <option value="active">{t('editor.onlyActive')}</option>
+              <option value="inactive">{t('editor.onlyInactive')}</option>
             </select>
           </div>
         </div>
@@ -117,10 +169,32 @@ export default function EditorScreen({ bankName, bank, topics, onSave, onDelete,
             </li>
           ) : (
             <li key={q.key} className="flex items-start gap-3 rounded-box border border-base-300 bg-base-100 p-3">
+              <Tooltip
+                text={
+                  disabledTopics.includes(q.topic)
+                    ? t('editor.topicOff')
+                    : q.disabled
+                      ? t('editor.turnOn')
+                      : t('editor.turnOff')
+                }
+                side="right"
+              >
+                <input
+                  type="checkbox"
+                  className="toggle toggle-primary toggle-sm mt-1"
+                  checked={!q.disabled}
+                  onChange={() => onToggleQuestion(q.key)}
+                  aria-label={q.disabled ? t('editor.turnOn') : t('editor.turnOff')}
+                />
+              </Tooltip>
               <span className="badge badge-ghost mt-0.5 shrink-0 font-semibold">{q.id}</span>
-              <div className="min-w-0 flex-1">
+              <div className={`min-w-0 flex-1 ${isQuestionActive(q, disabledTopics) ? '' : 'opacity-50'}`}>
                 <div className="font-medium">{q.question}</div>
-                <div className="text-xs opacity-60">{q.topic}</div>
+                <div className="flex flex-wrap items-center gap-2 text-xs">
+                  <span className="opacity-60">{q.topic}</span>
+                  {q.disabled && <span className="badge badge-ghost badge-xs">{t('editor.inactive')}</span>}
+                  {disabledTopics.includes(q.topic) && <span className="badge badge-ghost badge-xs">{t('editor.topicInactive')}</span>}
+                </div>
               </div>
               {confirmDelete === q.key ? (
                 <div className="flex shrink-0 items-center gap-1">

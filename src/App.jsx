@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { LANGUAGES, useI18n } from './i18n.jsx'
-import { assignKeys, readBankFile } from './lib/bank.js'
-import { countStatuses, lastStudiedKey, recordResult, resetQuestion, startSession, summarizeSession } from './lib/queue.js'
+import { assignKeys, isQuestionActive, readBankFile } from './lib/bank.js'
+import { countStatuses, lastStudiedKey, recordResult, removeFromSession, resetQuestion, startSession, summarizeSession } from './lib/queue.js'
 import { buildBackup, createBank, DEFAULT_SETTINGS, downloadJson, downloadText, isValidBackup, libraryFromBackup, loadState, saveState } from './lib/storage.js'
 import { parseCloze, serializeBank } from './lib/parser.js'
 import EditorScreen from './screens/EditorScreen.jsx'
@@ -21,6 +21,7 @@ import ExamScreen, { ExamSummaryScreen } from './screens/ExamScreen.jsx'
 const EXAM_SIZE = 10
 const NO_QUESTIONS = []
 const NO_PROGRESS = {}
+const NO_TOPICS = []
 // Full class names so Tailwind can find them when scanning the source.
 const TOAST_CLASSES = { success: 'alert-success', error: 'alert-error', info: 'alert-info' }
 
@@ -65,22 +66,26 @@ export default function App() {
     [],
   )
 
+  const disabledTopics = active?.disabledTopics ?? NO_TOPICS
+  // Deactivated questions (or topics) stay in the bank but are left out of sessions, reviews and exams.
+  const activeQuestions = useMemo(() => bank.filter((q) => isQuestionActive(q, disabledTopics)), [bank, disabledTopics])
   const bankByKey = useMemo(() => new Map(bank.map((q) => [q.key, q])), [bank])
   const topics = useMemo(() => [...new Set(bank.map((q) => q.topic))], [bank])
-  const counts = useMemo(() => countStatuses(bank, progress), [bank, progress])
+  const studyTopics = useMemo(() => [...new Set(activeQuestions.map((q) => q.topic))], [activeQuestions])
+  const counts = useMemo(() => countStatuses(activeQuestions, progress), [activeQuestions, progress])
   const dueReviews = useMemo(() => {
     const now = new Date()
-    return bank.filter((q) => {
+    return activeQuestions.filter((q) => {
       const p = progress[q.key]
       return p?.status === 'mastered' && (!p.nextReview || new Date(p.nextReview) <= now)
     }).length
-  }, [bank, progress])
+  }, [activeQuestions, progress])
 
   const notify = (type, text) => setToast({ type, text })
 
   // ---- Study session ----
   const beginSession = (nextSettings, mode) => {
-    const r = startSession(bank, progress, nextSettings, mode)
+    const r = startSession(activeQuestions, progress, nextSettings, mode)
     if (!r.session.queue.length) {
       notify('info', mode === 'review' ? t('toast.nothingToReview') : t('toast.nothingToStudy'))
       updateActive(() => ({ settings: nextSettings }))
@@ -145,6 +150,31 @@ export default function App() {
     notify('success', t('toast.questionDeleted', { id }))
   }
 
+  // Turning a question or a whole topic off takes it out of the current session; its progress is kept.
+  const toggleQuestion = (key) => {
+    const q = bankByKey.get(key)
+    if (!q) return
+    const disabling = !q.disabled
+    updateActive((b) => ({
+      questions: b.questions.map((x) => (x.key === key ? { ...x, disabled: disabling } : x)),
+      session: disabling ? removeFromSession(b.session, b.progress, [key]) : b.session,
+    }))
+    notify('success', t(disabling ? 'toast.questionDisabled' : 'toast.questionEnabled', { id: q.id }))
+  }
+
+  const toggleTopic = (topic) => {
+    const disabling = !disabledTopics.includes(topic)
+    updateActive((b) => {
+      const current = b.disabledTopics ?? []
+      const keys = b.questions.filter((q) => q.topic === topic).map((q) => q.key)
+      return {
+        disabledTopics: disabling ? [...current, topic] : current.filter((x) => x !== topic),
+        session: disabling ? removeFromSession(b.session, b.progress, keys) : b.session,
+      }
+    })
+    notify('success', t(disabling ? 'toast.topicDisabled' : 'toast.topicEnabled', { topic }))
+  }
+
   const downloadBank = () => {
     const base = (active?.name || 'banco').replace(/\.(md|txt|pdf)$/i, '')
     downloadText(`${base}.md`, serializeBank(bank))
@@ -152,7 +182,7 @@ export default function App() {
 
   // ---- Mock exam ----
   const beginExam = (examSettings) => {
-    const pool = bank.filter((q) => !examSettings.topics || examSettings.topics.includes(q.topic))
+    const pool = activeQuestions.filter((q) => !examSettings.topics || examSettings.topics.includes(q.topic))
     const keys = shuffle(pool.map((q) => q.key)).slice(0, EXAM_SIZE)
     if (!keys.length) return notify('info', t('toast.nothingToStudy'))
     setExam({ keys, index: 0, results: [], topics: examSettings.topics })
@@ -309,6 +339,8 @@ export default function App() {
             banks={library.banks}
             activeBank={active}
             topics={topics}
+            disabledTopics={disabledTopics}
+            inactiveCount={bank.length - activeQuestions.length}
             counts={counts}
             hasSession={hasSession}
             dueReviews={dueReviews}
@@ -334,7 +366,7 @@ export default function App() {
         {view === 'setup' && (
           <SetupScreen
             purpose={setupPurpose}
-            topics={topics}
+            topics={studyTopics}
             settings={settings}
             hasSession={hasSession}
             onCancel={() => setView('home')}
@@ -369,6 +401,7 @@ export default function App() {
             activeBank={active}
             bank={bank}
             topics={topics}
+            disabledTopics={disabledTopics}
             progress={progress}
             lastKey={lastStudiedKey(progress)}
             onSwitchBank={(id) => {
@@ -385,8 +418,11 @@ export default function App() {
             bankName={active.name}
             bank={bank}
             topics={topics}
+            disabledTopics={disabledTopics}
             onSave={saveQuestion}
             onDelete={deleteQuestion}
+            onToggleQuestion={toggleQuestion}
+            onToggleTopic={toggleTopic}
             onDownload={downloadBank}
             onBack={() => setView('home')}
           />

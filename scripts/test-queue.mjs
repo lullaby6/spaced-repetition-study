@@ -2,7 +2,8 @@
 import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
 import { clozeToRaw, missingFields, parseBank, parseCloze, serializeBank } from '../src/lib/parser.js'
-import { MAX_LEARNING, recordResult, startSession, countStatuses, resetQuestion, lastStudiedKey } from '../src/lib/queue.js'
+import { MAX_LEARNING, recordResult, startSession, countStatuses, resetQuestion, lastStudiedKey, removeFromSession } from '../src/lib/queue.js'
+import { isQuestionActive } from '../src/lib/bank.js'
 import { compareCopy, guessLanguage, isBlankCorrect, keywordRanges, suggestKeyPoints } from '../src/lib/text.js'
 
 // Voice language guess
@@ -10,8 +11,23 @@ assert.equal(guessLanguage('Es una forma de Estado del capitalismo desarrollado 
 assert.equal(guessLanguage('It is a form of state that intervenes in the economy and the social life', 'es'), 'en')
 assert.equal(guessLanguage('1945', 'en'), 'en')
 
-const text = await readFile(new URL('../banco-preguntas-estado-bienestar.md', import.meta.url), 'utf8')
-const bank = parseBank(text.split(/\r?\n/)).questions.map((q) => ({ ...q, key: String(q.id) }))
+// --- parser, on the small sample bank in scripts/fixtures ---
+const text = await readFile(new URL('./fixtures/sample-bank.md', import.meta.url), 'utf8')
+const sample = parseBank(text.split(/\r?\n/))
+assert.equal(sample.questions.length, 3)
+assert.deepEqual(sample.warnings, [])
+assert.deepEqual(sample.topics, ['Ciclo del agua', 'Fotosíntesis'])
+assert.ok(sample.questions[0].answer.includes('nubes, precipitación'), 'wrapped line joined with a space')
+assert.deepEqual(sample.questions[0].cloze.blanks, ['Evaporación', 'condensación', 'precipitación', 'infiltración'], 'blank split across lines rejoined')
+assert.ok(!sample.questions.some((q) => /Página/.test(q.answer)), 'text outside blocks ignored')
+
+// --- a larger generated bank for the queue rules (they need more than 15 questions) ---
+const bank = Array.from({ length: 40 }, (_, i) => ({
+  ...sample.questions[i % 3],
+  id: i + 1,
+  key: String(i + 1),
+  topic: i < 20 ? 'Tema A' : 'Tema B',
+}))
 const settings = { topics: null, order: 'bank', newPerSession: 15 }
 
 // --- text helpers ---
@@ -22,7 +38,10 @@ assert.ok(!isBlankCorrect('paa', 'paz'), 'no typo allowed in short words')
 assert.ok(!isBlankCorrect('1946', '1945'), 'numbers must match exactly')
 assert.ok(compareCopy(bank[0].answer, bank[0].answer.toUpperCase()).similarity === 1)
 assert.ok(compareCopy(bank[0].answer, 'es una forma de estado').similarity < 0.8)
-const sug = suggestKeyPoints(bank[30].keyPoints, 'indigencia con ingresos, enfermedad con un servicio sanitario, y la ociosidad con pleno empleo')
+const sug = suggestKeyPoints(
+  ['Indigencia → ingresos suficientes', 'Enfermedad → servicio sanitario', 'Ignorancia → educación', 'Suciedad → vivienda', 'Ociosidad → pleno empleo'],
+  'indigencia con ingresos, enfermedad con un servicio sanitario, y la ociosidad con pleno empleo',
+)
 assert.deepEqual(sug, [true, true, false, false, true])
 
 // --- queue ---
@@ -79,6 +98,18 @@ assert.ok(next - Date.now() > 2.9 * 24 * 3600 * 1000, 'next review in 3 days')
   assert.equal(new Set(reset.session.queue.map((i) => i.key)).size, MAX_LEARNING, 'slot refilled')
   assert.equal(lastStudiedKey(reset.progress), '1', 'stepping back goes to the previous one')
   assert.equal(resetQuestion(null, p, '1').session, null)
+}
+
+// Turning questions off: they leave the session (and the new-question list) but keep their progress.
+{
+  let { session: s, progress: p } = startSession(bank, {}, settings)
+  ;({ session: s, progress: p } = recordResult(s, p, 'passed')) // question 1 → stage 2
+  const after = removeFromSession(s, p, ['1', '7'])
+  assert.ok(!after.queue.some((i) => i.key === '1'))
+  assert.ok(!after.pendingNew.includes('7'), 'an off question is not introduced later')
+  assert.equal(new Set(after.queue.map((i) => i.key)).size, MAX_LEARNING, 'slot refilled with the next new one')
+  assert.equal(p['1'].stage, 2, 'progress untouched')
+  assert.ok(isQuestionActive({ topic: 'A' }) && !isQuestionActive({ topic: 'A', disabled: true }) && !isQuestionActive({ topic: 'A' }, ['A']))
 }
 
 // Editing: a bank written back to .md parses to the same questions.

@@ -3,6 +3,8 @@ import { useI18n } from '../i18n.jsx'
 import { countStatuses, initialProgress } from '../lib/queue.js'
 import StatusBar from '../components/StatusBar.jsx'
 import Tooltip, { InfoTip } from '../components/Tooltip.jsx'
+import { isQuestionActive } from '../lib/bank.js'
+import { normalize } from '../lib/text.js'
 
 const STATUS_BADGE = {
   new: 'badge-ghost',
@@ -22,19 +24,40 @@ function ResetIcon() {
 // Table of every question with its stage and status, filterable by topic and status.
 // Any started question can be put back to "new"; `lastKey` is the most recently answered one,
 // so resetting it repeatedly walks progress back one question at a time.
-export default function ProgressScreen({ banks, activeBank, bank, topics, progress, lastKey, onSwitchBank, onResetQuestion, onResetAll }) {
+export default function ProgressScreen({
+  banks,
+  activeBank,
+  bank,
+  topics,
+  disabledTopics,
+  progress,
+  lastKey,
+  onSwitchBank,
+  onResetQuestion,
+  onResetAll,
+}) {
   const { t, lang } = useI18n()
+  const [search, setSearch] = useState('')
   const [topic, setTopic] = useState('')
   const [status, setStatus] = useState('')
 
-  const rows = useMemo(
-    () =>
-      bank
-        .map((q) => ({ q, p: progress[q.key] || initialProgress(q.key) }))
-        .filter(({ q, p }) => (!topic || q.topic === topic) && (!status || p.status === status)),
-    [bank, progress, topic, status],
+  const rows = useMemo(() => {
+    const needle = normalize(search)
+    return bank
+      .map((q) => ({ q, p: progress[q.key] || initialProgress(q.key), active: isQuestionActive(q, disabledTopics) }))
+      .filter(
+        ({ q, p }) =>
+          (!topic || q.topic === topic) &&
+          (!status || p.status === status) &&
+          (!needle || normalize(`${q.id} ${q.question} ${q.answer} ${q.topic}`).includes(needle)),
+      )
+  }, [bank, progress, disabledTopics, search, topic, status])
+  // The bar counts only questions that take part in study (active ones).
+  const counts = countStatuses(
+    bank.filter((q) => isQuestionActive(q, disabledTopics)),
+    progress,
+    topic ? [topic] : null,
   )
-  const counts = countStatuses(bank, progress, topic ? [topic] : null)
   const dateFormat = new Intl.DateTimeFormat(lang, { dateStyle: 'short', timeStyle: 'short' })
   const lastQuestion = lastKey ? bank.find((q) => q.key === lastKey) : null
 
@@ -79,6 +102,14 @@ export default function ProgressScreen({ banks, activeBank, bank, topics, progre
               </select>
             </label>
           )}
+          <input
+            type="search"
+            className="input input-bordered w-full"
+            placeholder={t('editor.search')}
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            aria-label={t('editor.search')}
+          />
           <div className="grid gap-2 sm:grid-cols-2">
             <select className="select select-bordered w-full" value={topic} onChange={(e) => setTopic(e.target.value)} aria-label={t('progress.topic')}>
               <option value="">{t('progress.allTopics')}</option>
@@ -136,12 +167,15 @@ export default function ProgressScreen({ banks, activeBank, bank, topics, progre
             </tr>
           </thead>
           <tbody>
-            {rows.map(({ q, p }) => (
-              <tr key={q.key} className="align-top">
+            {rows.map(({ q, p, active }) => (
+              <tr key={q.key} className={`align-top ${active ? '' : 'opacity-50'}`}>
                 <td className="font-semibold">{q.id}</td>
                 <td className="min-w-56">
                   <div>{q.question}</div>
-                  <div className="text-xs opacity-60">{q.topic}</div>
+                  <div className="flex flex-wrap items-center gap-2 text-xs">
+                    <span className="opacity-60">{q.topic}</span>
+                    {!active && <span className="badge badge-ghost badge-xs">{t('editor.inactive')}</span>}
+                  </div>
                 </td>
                 <td className="whitespace-nowrap">{p.status === 'new' ? '—' : `${p.stage} · ${t(`stage.names.${p.stage}`)}`}</td>
                 <td>

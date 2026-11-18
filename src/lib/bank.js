@@ -26,6 +26,11 @@ export async function readBankFile(file) {
   return parseBank(lines)
 }
 
+// A question takes part in sessions, reviews and mock exams unless it, or its topic, is deactivated.
+export function isQuestionActive(question, disabledTopics = []) {
+  return !question.disabled && !disabledTopics.includes(question.topic)
+}
+
 // Each question gets a unique `key` (its number, or number-N when appending a bank with repeated numbers).
 export function assignKeys(questions, takenKeys = new Set()) {
   const taken = new Set(takenKeys)
