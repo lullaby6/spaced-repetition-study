@@ -292,6 +292,7 @@ export default {
     resetAll: 'Reiniciar todo el progreso',
     restoreResets: 'Restaurar progreso ({count})',
     lastStudied: 'Última que estudiaste:',
+    topicSummary: '{count} preguntas · {mastered} dominadas',
     resetLast: 'Reiniciar la última',
     reset: 'Reiniciar',
     resetOne: 'Reiniciar la pregunta {id} (vuelve a estar como nueva)',

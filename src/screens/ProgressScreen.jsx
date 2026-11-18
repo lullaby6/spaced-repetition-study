@@ -54,6 +54,11 @@ export default function ProgressScreen({
           (!needle || normalize(`${q.id} ${q.question} ${q.answer} ${q.topic}`).includes(needle)),
       )
   }, [bank, progress, disabledTopics, search, topic, status])
+  // Rows grouped by topic, in the order topics appear in the bank.
+  const groups = useMemo(
+    () => topics.map((tp) => ({ topic: tp, rows: rows.filter((r) => r.q.topic === tp) })).filter((g) => g.rows.length),
+    [topics, rows],
+  )
   // The bar counts only questions that take part in study (active ones).
   const counts = countStatuses(
     bank.filter((q) => isQuestionActive(q, disabledTopics)),
@@ -175,16 +180,28 @@ export default function ProgressScreen({
               </th>
             </tr>
           </thead>
-          <tbody>
-            {rows.map(({ q, p, active }) => (
+          {groups.map((group) => (
+          <tbody key={group.topic}>
+            {/* Topic header: name, how many questions are shown and how many are mastered */}
+            <tr className="bg-base-200/70">
+              <th colSpan={7} className="py-2">
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                  <span className={`font-semibold ${disabledTopics.includes(group.topic) ? 'line-through opacity-60' : ''}`}>{group.topic}</span>
+                  <span className="text-xs font-normal opacity-60">
+                    {t('progress.topicSummary', {
+                      count: group.rows.length,
+                      mastered: group.rows.filter((r) => r.p.status === 'mastered').length,
+                    })}
+                  </span>
+                </div>
+              </th>
+            </tr>
+            {group.rows.map(({ q, p, active }) => (
               <tr key={q.key} className={`align-top ${active ? '' : 'opacity-50'}`}>
                 <td className="font-semibold">{q.id}</td>
                 <td className="min-w-56">
                   <div>{q.question}</div>
-                  <div className="flex flex-wrap items-center gap-2 text-xs">
-                    <span className="opacity-60">{q.topic}</span>
-                    {!active && <span className="badge badge-ghost badge-xs">{t('editor.inactive')}</span>}
-                  </div>
+                  {!active && <span className="badge badge-ghost badge-xs">{t('editor.inactive')}</span>}
                 </td>
                 <td className="whitespace-nowrap">{p.status === 'new' ? '—' : `${p.stage} · ${t(`stage.names.${p.stage}`)}`}</td>
                 <td>
@@ -210,14 +227,17 @@ export default function ProgressScreen({
                 </td>
               </tr>
             ))}
-            {!rows.length && (
+          </tbody>
+          ))}
+          {!rows.length && (
+            <tbody>
               <tr>
                 <td colSpan={7} className="py-6 text-center opacity-60">
                   {t('progress.empty')}
                 </td>
               </tr>
-            )}
-          </tbody>
+            </tbody>
+          )}
         </table>
       </div>
     </div>

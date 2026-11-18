@@ -292,6 +292,7 @@ export default {
     resetAll: 'Reset all progress',
     restoreResets: 'Restore progress ({count})',
     lastStudied: 'Last one you studied:',
+    topicSummary: '{count} questions · {mastered} mastered',
     resetLast: 'Reset the last one',
     reset: 'Reset',
     resetOne: 'Reset question {id} (back to new)',
