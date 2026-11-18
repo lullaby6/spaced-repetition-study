@@ -5,7 +5,7 @@ import Tooltip from '../Tooltip.jsx'
 import { useSpeech } from '../../hooks/useSpeech.js'
 import { compareCopy, guessLanguage } from '../../lib/text.js'
 import ResultPanel from '../ResultPanel.jsx'
-import MarkedText from '../MarkedText.jsx'
+import MarkedText, { clipRange } from '../MarkedText.jsx'
 
 const PASS_THRESHOLD = 0.8
 // Remembers whether the user prefers the answer hidden (e.g. to copy it by ear).
@@ -27,11 +27,19 @@ function saveHidden(hidden) {
   }
 }
 
+// What the voice reads in this stage: the question, then the answer (the answer is highlighted).
+export const copySpokenText = (question) => `${question.question} ${question.answer}`
+
 // Stage 1: read the full answer and type it once (pasting is blocked).
-export default function CopyStage({ question, outcomeFor, onDone }) {
+// `speech`: the session's voice (shared with "read each question aloud", so the Listen button shows
+// what it is doing); without it the stage uses its own.
+export default function CopyStage({ question, outcomeFor, readRate = 1, speech: sharedSpeech, onDone }) {
   // Copying always ends passed, so it never offers "try again".
   const { t, lang } = useI18n()
-  const speech = useSpeech()
+  const ownSpeech = useSpeech({ rate: readRate })
+  const speech = sharedSpeech ?? ownSpeech
+  const spoken = copySpokenText(question)
+  const answerStart = question.question.length + 1
   const [hidden, setHidden] = useState(loadHidden)
   const [typed, setTyped] = useState('')
   const [check, setCheck] = useState(null) // { similarity, parts }
@@ -56,7 +64,7 @@ export default function CopyStage({ question, outcomeFor, onDone }) {
     })
   }
 
-  const toggleSpeech = () => speech.toggle(question.answer, guessLanguage(question.answer, lang))
+  const toggleSpeech = () => speech.toggle(spoken, guessLanguage(question.answer, lang))
   const restartSpeech = () => {
     if (speech.status === 'idle') toggleSpeech()
     else speech.restart()
@@ -146,7 +154,12 @@ export default function CopyStage({ question, outcomeFor, onDone }) {
           <p className="italic opacity-60">{t('stages.copy.hiddenNote')}</p>
         ) : (
           <p className="select-none leading-relaxed">
-            <MarkedText text={question.answer} keywords={question.cloze.blanks} sentence={speech.sentence} word={speech.word} />
+            <MarkedText
+              text={question.answer}
+              keywords={question.cloze.blanks}
+              sentence={clipRange(speech.sentence, answerStart, spoken.length)}
+              word={clipRange(speech.word, answerStart, spoken.length)}
+            />
           </p>
         )}
       </div>

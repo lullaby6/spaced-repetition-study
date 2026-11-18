@@ -13,6 +13,10 @@ export default {
     label: 'Stage {n} of {total} · {name}',
   },
   result: { passed: 'Passed', partial: 'Partly', failed: "Didn't know it", skipped: 'Skipped' },
+  sessionSettings: {
+    title: 'Session settings',
+    saved: 'Changes apply right away (from the next exercise) and are saved for this bank.',
+  },
   browse: {
     title: 'View questions and answers',
     help: 'Every question with its answer, grouped by topic, to read at your own pace. You can hide the answers to test yourself.',
@@ -258,6 +262,9 @@ export default {
     stages: 'Stages',
     stage4Note: '(the hardest)',
     stagesNone: 'Pick at least one stage.',
+    autoRead: 'Read each question aloud',
+    autoReadHelp:
+      'Every time an exercise shows up, the voice reads the question (and the answer in Copy and No help). The speed is also used by the "Listen" button.',
     noBacktrack: "Don't go back on failure",
     noBacktrackHelp: 'If it goes badly, you repeat the same stage later instead of going back to the previous one.',
     replacesSession: "Starting a new session replaces the current one (each question's progress is kept).",
@@ -516,6 +523,8 @@ export default {
     exam: 'Random questions, like an exam: multiple choice or written with no help. You choose how many. It does not change your progress.',
     stages:
       'Which exercises each question goes through. Stages that are off are skipped: a question is mastered when you pass the last stage that is on. Stage 4 (no help) is off by default; turn it on for the full challenge.',
+    autoRead:
+      'Every exercise that shows up is read aloud, even the same question at another stage. The question is read and, in the stages that show the full answer (1 Copy and 4 No help, while you read it), the answer too. In Fill in and With hints only the question is read, so the answer is not given away.',
     noBacktrack:
       'Normally, if a stage goes badly, the question goes back to the previous stage. With this option it stays at the same stage and you repeat it later, so you keep moving forward even when you fail.',
     examOrder:

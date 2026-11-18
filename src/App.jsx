@@ -605,6 +605,18 @@ export default function App() {
             onJump={(key) => updateActive((b) => ({ session: jumpTo(b.session, key) }))}
             onToggle={toggleInStudy}
             onDelete={deleteQuestion}
+            autoRead={!!settings.autoRead}
+            readRate={settings.readRate ?? 1}
+            onChangeSettings={(changes) =>
+              // Saved for the bank; "don't go back on failure" also changes the running session's rules.
+              updateActive((b) => ({
+                settings: { ...b.settings, ...changes },
+                session:
+                  b.session && 'noBacktrack' in changes
+                    ? { ...b.session, options: { ...b.session.options, noBacktrack: changes.noBacktrack } }
+                    : b.session,
+              }))
+            }
             deletedCount={trashCount(['question'], library.activeId)}
             onOpenDeleted={() => openTrash({ types: ['question'], bankId: library.activeId }, 'trash.questionsTitle')}
             onFinish={() => finishSession(session)}

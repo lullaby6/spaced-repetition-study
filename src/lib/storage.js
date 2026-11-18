@@ -15,6 +15,8 @@ export const DEFAULT_SETTINGS = {
   maxLearning: 4, // questions being learned at once
   stages: [1, 2, 3],
   noBacktrack: false,
+  autoRead: true, // read each exercise aloud when it appears
+  readRate: 1,
 }
 
 export function newBankId() {

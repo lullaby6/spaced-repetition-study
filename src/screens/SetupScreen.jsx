@@ -3,6 +3,8 @@ import { useI18n } from '../i18n.jsx'
 import { InfoTip } from '../components/Tooltip.jsx'
 import { DEFAULT_EXAM_SIZE, EXAM_SIZES, resolveExamSize } from '../lib/exam.js'
 
+const READ_RATES = [0.8, 1, 1.2, 1.5, 1.75, 2]
+
 // Session settings (topics, order, new questions per session), or mock exam settings
 // (type, order, how many questions, topics). `topicCounts` maps each topic to its active questions.
 export default function SetupScreen({ purpose, topics, topicCounts, settings, hasSession, onStart, onCancel }) {
@@ -13,6 +15,9 @@ export default function SetupScreen({ purpose, topics, topicCounts, settings, ha
   const [maxLearning, setMaxLearning] = useState(settings.maxLearning ?? 4)
   const [stages, setStages] = useState(() => new Set(settings.stages ?? [1, 2, 3]))
   const [noBacktrack, setNoBacktrack] = useState(!!settings.noBacktrack)
+  const [autoRead, setAutoRead] = useState(settings.autoRead ?? true)
+  const [readRate, setReadRate] = useState(READ_RATES.includes(settings.readRate) ? settings.readRate : 1)
+  const canSpeak = typeof window !== 'undefined' && !!window.speechSynthesis
   const toggleStage = (stage) =>
     setStages((cur) => {
       const next = new Set(cur)
@@ -51,6 +56,8 @@ export default function SetupScreen({ purpose, topics, topicCounts, settings, ha
       maxLearning: Math.max(1, Math.min(50, Math.floor(Number(maxLearning)) || 4)),
       stages: [1, 2, 3, 4].filter((s) => stages.has(s)),
       noBacktrack,
+      autoRead,
+      readRate,
       examMode,
       examOrder,
       examSize: sizeValue,
@@ -194,6 +201,32 @@ export default function SetupScreen({ purpose, topics, topicCounts, settings, ha
                 <span className="block text-sm opacity-70">{t('setup.noBacktrackHelp')}</span>
               </span>
             </label>
+
+            {canSpeak && (
+              <div className="flex flex-wrap items-start gap-x-6 gap-y-2">
+                <label className="flex cursor-pointer items-start gap-3">
+                  <input type="checkbox" className="toggle toggle-primary toggle-sm mt-0.5" checked={autoRead} onChange={(e) => setAutoRead(e.target.checked)} />
+                  <span>
+                    <span className="font-semibold">{t('setup.autoRead')}</span> <InfoTip text={t('info.autoRead')} />
+                    <span className="block text-sm opacity-70">{t('setup.autoReadHelp')}</span>
+                  </span>
+                </label>
+                <label className="flex items-center gap-2 text-sm">
+                  {t('listen.rateLabel')}
+                  <select
+                    className="select select-bordered select-sm w-auto"
+                    value={readRate}
+                    onChange={(e) => setReadRate(Number(e.target.value))}
+                  >
+                    {READ_RATES.map((r) => (
+                      <option key={r} value={r}>
+                        {r}×
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </div>
+            )}
 
             <fieldset className="space-y-2">
               <legend className="font-semibold">

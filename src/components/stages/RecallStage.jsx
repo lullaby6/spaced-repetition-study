@@ -74,7 +74,12 @@ export default function RecallStage({
     setTicked(suggestKeyPoints(question.keyPoints, typed))
     setPhase('comparing')
   }
-  useEnterHotkey(() => setPhase('writing'), phase === 'reading')
+  // "I'm ready": the answer is hidden, so any voice still reading it is stopped.
+  const startWriting = () => {
+    window.speechSynthesis?.cancel()
+    setPhase('writing')
+  }
+  useEnterHotkey(startWriting, phase === 'reading')
   useEnterHotkey(compare, phase === 'writing')
   useEnterHotkey(() => setPhase('assessed'), phase === 'comparing')
 
@@ -97,7 +102,7 @@ export default function RecallStage({
         </div>
         <p className="text-sm opacity-70">{t('stages.recall.readHelp')}</p>
         <div className="flex justify-end">
-          <button type="button" className="btn btn-primary w-full sm:w-auto" onClick={() => setPhase('writing')} autoFocus>
+          <button type="button" className="btn btn-primary w-full sm:w-auto" onClick={startWriting} autoFocus>
             {t('stages.recall.ready')}
             <kbd className="kbd kbd-sm hidden sm:inline-flex">Enter</kbd>
           </button>

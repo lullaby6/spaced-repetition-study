@@ -3,6 +3,15 @@ import { keywordRanges } from '../lib/text.js'
 
 const inside = (pos, ranges) => ranges.some(([s, e]) => pos >= s && pos < e)
 
+// The part of `range` ([start, end] in a longer spoken text) that falls inside [from, to), shifted to
+// start at 0 — to highlight one piece (e.g. the answer) of what is being read.
+export function clipRange(range, from, to) {
+  if (!range) return null
+  const start = Math.max(range[0], from)
+  const end = Math.min(range[1], to)
+  return start < end ? [start - from, end - from] : null
+}
+
 // Text with its key words underlined and, while it is read aloud, the current sentence tinted and
 // the current word highlighted. `sentence` and `word` are [start, end] ranges or null.
 export default function MarkedText({ text, keywords = [], sentence = null, word = null }) {

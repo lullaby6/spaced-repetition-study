@@ -1,6 +1,8 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useI18n } from '../i18n.jsx'
 import { HotkeysActiveContext } from '../hooks/useHotkey.js'
+import { useSpeech } from '../hooks/useSpeech.js'
+import { guessLanguage } from '../lib/text.js'
 import { describeOutcome, lastSkipped, sessionStages } from '../lib/queue.js'
 import QuestionCard from '../components/QuestionCard.jsx'
 import StatusBar from '../components/StatusBar.jsx'
@@ -9,6 +11,9 @@ import HistoryNav from '../components/HistoryNav.jsx'
 import Tooltip, { InfoTip } from '../components/Tooltip.jsx'
 import SessionOverview, { studyOverviewRows } from '../components/SessionOverview.jsx'
 import PastExercise from '../components/PastExercise.jsx'
+import SessionSettingsButton from '../components/SessionSettingsButton.jsx'
+import { copySpokenText } from '../components/stages/CopyStage.jsx'
+import { clipRange } from '../components/MarkedText.jsx'
 
 export default function StudyScreen({
   session,
@@ -24,12 +29,37 @@ export default function StudyScreen({
   onFinish,
   deletedCount,
   onOpenDeleted,
+  autoRead = false,
+  readRate = 1,
+  onChangeSettings,
 }) {
-  const { t } = useI18n()
+  const { t, lang } = useI18n()
   const [position, setPosition] = useState(null) // index in session.log, or null for the current exercise
   const item = session.queue[0]
   const question = item && bankByKey.get(item.key)
+
+  // "Read each question aloud": every new exercise reads its question, plus the answer in the stages
+  // that show it in full (1 Copy, 4 No help, which starts by reading it).
+  const speech = useSpeech({ rate: readRate })
+  const { play: speak, stop: stopSpeaking } = speech
+  useEffect(() => {
+    if (!autoRead || !question) return undefined
+    // Same text as stage 1's Listen button, so that button can pause/resume this reading.
+    const text = item.stage === 1 ? copySpokenText(question) : item.stage === 4 ? `${question.question} ${question.answer}` : question.question
+    speak(text, guessLanguage(question.answer, lang))
+    return stopSpeaking
+    // Only when a new exercise shows up (the counter changes on every step).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [session.counter, autoRead])
+
   if (!item || !question) return null
+
+  // Everything the voice reads starts with the question, so its first characters map to the title.
+  const reading = speech.status !== 'idle'
+  const qLen = question.question.length
+  const titleHighlight = reading
+    ? { sentence: clipRange(speech.sentence, 0, qLen), word: clipRange(speech.word, 0, qLen) }
+    : null
 
   const reviewBadge = (kind) =>
     kind === 'review' ? <span className="badge badge-secondary badge-soft">{t('exercise.reviewBadge')}</span> : null
@@ -44,6 +74,12 @@ export default function StudyScreen({
           {t('study.sessionInfo', { done: session.log.length, pending: session.queue.length })} <InfoTip text={t('info.queue')} />
         </div>
         <div className="flex flex-wrap items-center gap-1">
+          <SessionSettingsButton
+            autoRead={autoRead}
+            readRate={readRate}
+            noBacktrack={!!session.options?.noBacktrack}
+            onChange={onChangeSettings}
+          />
           <SessionOverview
             rows={studyOverviewRows(session, progress)}
             bankByKey={bankByKey}
@@ -104,11 +140,14 @@ export default function StudyScreen({
             stage={item.stage}
             stages={sessionStages(session)}
             badges={reviewBadge(item.kind)}
+            titleHighlight={titleHighlight}
           >
             <Exercise
               question={question}
               stage={item.stage}
               outcomeFor={(result) => describeOutcome(item, result, session)}
+              readRate={readRate}
+              speech={speech}
               onDone={(record) => {
                 setPosition(null)
                 onResult(record)

@@ -8,7 +8,9 @@ import RecallStage from './stages/RecallStage.jsx'
 // A record is { result, ratio?, response } where `response` is what the user answered.
 // Stage 4 can ask for step-by-step hints. In a study session (`outcomeFor` set) using them keeps the
 // question from being mastered; in the mock exam they are only recorded.
-export default function Exercise({ question, stage, outcomeFor, onDone }) {
+// `readRate`: voice speed chosen for the session; `speech`: the session's voice, shared with stage 1's
+// "Listen" button so it reflects what the automatic reading is doing.
+export default function Exercise({ question, stage, outcomeFor, readRate, speech, onDone }) {
   const askHints = stage === 4
   const [attempt, setAttempt] = useState(0)
   const [first, setFirst] = useState(null)
@@ -24,7 +26,7 @@ export default function Exercise({ question, stage, outcomeFor, onDone }) {
     },
   }
 
-  if (stage === 1) return <CopyStage key={attempt} {...props} />
+  if (stage === 1) return <CopyStage key={attempt} {...props} readRate={readRate} speech={speech} />
   if (stage === 2) return <ClozeStage key={attempt} {...props} />
   // In study sessions stage 4 lets you read the answer first; the mock exam does not.
   const studying = !!outcomeFor

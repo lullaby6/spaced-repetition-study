@@ -13,6 +13,10 @@ export default {
     label: 'Etapa {n} de {total} · {name}',
   },
   result: { passed: 'Aprobada', partial: 'Más o menos', failed: 'No la sabía', skipped: 'Salteada' },
+  sessionSettings: {
+    title: 'Configuración de la sesión',
+    saved: 'Los cambios se aplican al instante (desde el próximo ejercicio) y quedan guardados para este banco.',
+  },
   browse: {
     title: 'Ver preguntas y respuestas',
     help: 'Todas las preguntas con sus respuestas, agrupadas por tema, para leerlas tranquilo. Podés ocultar las respuestas para probarte.',
@@ -258,6 +262,9 @@ export default {
     stages: 'Etapas',
     stage4Note: '(la más difícil)',
     stagesNone: 'Elegí al menos una etapa.',
+    autoRead: 'Leer en voz alta cada pregunta',
+    autoReadHelp:
+      'Cada vez que aparece un ejercicio, la voz lee la pregunta (y la respuesta en Copiar y Sin ayuda). La velocidad también se usa en el botón "Escuchar".',
     noBacktrack: 'No retroceder al fallar',
     noBacktrackHelp: 'Si te va mal, repetís la misma etapa más adelante en vez de volver a la anterior.',
     replacesSession: 'Empezar una sesión nueva reemplaza la sesión en curso (el progreso de cada pregunta se mantiene).',
@@ -516,6 +523,8 @@ export default {
     exam: 'Preguntas al azar, como en un examen: de opción múltiple o para escribir sin ayuda. Elegís cuántas. No cambia tu progreso.',
     stages:
       'Qué ejercicios hace cada pregunta. Las etapas desactivadas se saltean: una pregunta queda dominada al aprobar la última etapa activa. La etapa 4 (sin ayuda) viene desactivada; activala si querés el desafío completo.',
+    autoRead:
+      'Cada ejercicio que aparece se lee en voz alta, aunque sea la misma pregunta en otra etapa. Se lee el enunciado y, en las etapas que muestran la respuesta completa (1 Copiar y 4 Sin ayuda, mientras la estás leyendo), también la respuesta. En Completar y Con pistas solo se lee la pregunta, para no darte la respuesta.',
     noBacktrack:
       'Normalmente, si te va mal en una etapa, la pregunta vuelve a la etapa anterior. Con esta opción se queda en la misma etapa y la repetís más adelante, así avanzás aunque falles.',
     examOrder:

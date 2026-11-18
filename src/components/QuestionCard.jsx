@@ -1,10 +1,12 @@
 import { useI18n } from '../i18n.jsx'
 import { InfoTip } from './Tooltip.jsx'
+import MarkedText from './MarkedText.jsx'
 
 // Exercise frame: question number, topic, stage label and the question itself.
 // `stages` are the stages enabled in the session: the label shows the position among them
 // ("Stage 2 of 3"), so it stays right when some stages are turned off.
-export default function QuestionCard({ question, stage, stages = [1, 2, 3, 4], badges = null, children }) {
+// `titleHighlight` ({ sentence, word } ranges in the question text) marks what the voice is saying.
+export default function QuestionCard({ question, stage, stages = [1, 2, 3, 4], badges = null, titleHighlight = null, children }) {
   const { t } = useI18n()
   const position = stages.indexOf(stage)
   const n = position >= 0 ? position + 1 : stage
@@ -27,7 +29,9 @@ export default function QuestionCard({ question, stage, stages = [1, 2, 3, 4], b
             {badges}
             {stage && <InfoTip text={t('info.stage')} />}
           </div>
-          <h2 className="text-xl font-bold leading-snug text-balance sm:text-2xl">{question.question}</h2>
+          <h2 className="text-xl font-bold leading-snug text-balance sm:text-2xl">
+            {titleHighlight ? <MarkedText text={question.question} {...titleHighlight} /> : question.question}
+          </h2>
         </header>
         {children}
       </div>
