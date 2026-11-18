@@ -36,12 +36,27 @@ export default function AiPromptModal({ open, onClose }) {
         <li>{t('aiPrompt.step2')}</li>
         <li>{t('aiPrompt.step3')}</li>
       </ol>
+      <div role="note" className="alert alert-info alert-soft mb-3 items-start text-sm">
+        <svg viewBox="0 0 24 24" className="size-5 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+          <path d="M9 18h6m-5 3h4M12 3a6 6 0 0 0-3.6 10.8c.7.5 1.1 1.3 1.1 2.2h5c0-.9.4-1.7 1.1-2.2A6 6 0 0 0 12 3Z" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+        <div>
+          <div className="font-semibold">{t('aiPrompt.tipTitle')}</div>
+          <p>{t('aiPrompt.tipIntro')}</p>
+          <ul className="mt-1 list-inside list-disc space-y-0.5">
+            <li>{t('aiPrompt.tipTotal')}</li>
+            <li>{t('aiPrompt.tipPerTopic')}</li>
+            <li>{t('aiPrompt.tipShorter')}</li>
+            <li>{t('aiPrompt.tipCustom')}</li>
+          </ul>
+        </div>
+      </div>
       <textarea
         ref={textRef}
         className="textarea textarea-bordered h-64 w-full font-mono text-sm leading-relaxed"
         value={prompt}
         readOnly
-        onFocus={(e) => e.target.select()}
+        onClick={(e) => e.target.select()}
         aria-label={t('aiPrompt.title')}
       />
       <div className="mt-2 flex items-center justify-end gap-3">
