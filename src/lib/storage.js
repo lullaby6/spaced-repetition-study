@@ -8,7 +8,14 @@ const LEGACY_STORAGE_KEY = 'study-app-state-v1'
 export const BACKUP_APP_ID = 'study-app'
 export const BACKUP_VERSION = 2
 // Stage 4 (recall with no help) is off by default; it can be turned on in the session setup.
-export const DEFAULT_SETTINGS = { topics: null, order: 'bank', newPerSession: 15, stages: [1, 2, 3], noBacktrack: false }
+export const DEFAULT_SETTINGS = {
+  topics: null,
+  order: 'bank',
+  newPerSession: 15,
+  maxLearning: 4, // questions being learned at once
+  stages: [1, 2, 3],
+  noBacktrack: false,
+}
 
 export function newBankId() {
   return globalThis.crypto?.randomUUID?.() ?? `bank-${Date.now()}-${Math.random().toString(36).slice(2)}`

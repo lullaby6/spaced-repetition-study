@@ -26,5 +26,16 @@ export default function Exercise({ question, stage, outcomeFor, onDone }) {
 
   if (stage === 1) return <CopyStage key={attempt} {...props} />
   if (stage === 2) return <ClozeStage key={attempt} {...props} />
-  return <RecallStage key={attempt} {...props} withHints={stage === 3} askHints={askHints} hintsCapResult={askHints && !!outcomeFor} />
+  // In study sessions stage 4 lets you read the answer first; the mock exam does not.
+  const studying = !!outcomeFor
+  return (
+    <RecallStage
+      key={attempt}
+      {...props}
+      withHints={stage === 3}
+      askHints={askHints}
+      hintsCapResult={askHints && studying}
+      readFirst={stage === 4 && studying}
+    />
+  )
 }

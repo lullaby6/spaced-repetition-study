@@ -20,9 +20,15 @@ export const ALL_STAGES = [1, 2, 3, 4]
 // question back a stage (default) or just repeats the same stage later (`noBacktrack`).
 export const DEFAULT_OPTIONS = { stages: ALL_STAGES, noBacktrack: false }
 
+// `maxLearning`: how many questions are learned at once (sessions from before it was configurable used 6).
 function optionsOf(session) {
   const stages = [...new Set((session?.options?.stages ?? ALL_STAGES).filter((s) => ALL_STAGES.includes(s)))].sort()
-  return { stages: stages.length ? stages : ALL_STAGES, noBacktrack: !!session?.options?.noBacktrack }
+  const max = Math.floor(Number(session?.options?.maxLearning))
+  return {
+    stages: stages.length ? stages : ALL_STAGES,
+    noBacktrack: !!session?.options?.noBacktrack,
+    maxLearning: max >= 1 ? max : MAX_LEARNING,
+  }
 }
 
 // The stages enabled in a session (all four for sessions started before stages could be chosen).
@@ -85,14 +91,15 @@ function countLearning(queue) {
   return new Set(queue.filter((i) => i.kind === 'learn').map((i) => i.key)).size
 }
 
-// Rule 4.2: a new question enters while there is room (max 6 learning) and the session limit allows it.
+// Rule 4.2: a new question enters while there is room (maxLearning at once) and the session limit allows it.
 // Entering the queue does not change its status: it stays "new" until it is first answered.
 function refill(session, progress) {
   const queue = [...session.queue]
   const pending = [...session.pendingNew]
   let introduced = session.newIntroduced
-  const firstStage = optionsOf(session).stages[0]
-  while (countLearning(queue) < MAX_LEARNING && introduced < session.newLimit && pending.length) {
+  const { stages, maxLearning } = optionsOf(session)
+  const firstStage = stages[0]
+  while (countLearning(queue) < maxLearning && introduced < session.newLimit && pending.length) {
     const key = pending.shift()
     if ((progress[key]?.status ?? 'new') !== 'new') continue
     queue.push({ key, stage: firstStage, kind: 'learn' })
@@ -118,7 +125,9 @@ export function startSession(bank, progress, settings, mode = 'normal') {
   for (const q of bank) if (!fullProgress[q.key]) fullProgress[q.key] = initialProgress(q.key)
   const pool = bank.filter((q) => !settings.topics || settings.topics.includes(q.topic))
   const prog = (q) => fullProgress[q.key]
-  const options = optionsOf({ options: { stages: settings.stages, noBacktrack: settings.noBacktrack } })
+  const options = optionsOf({
+    options: { stages: settings.stages, noBacktrack: settings.noBacktrack, maxLearning: settings.maxLearning },
+  })
   const reviewStage = options.stages[options.stages.length - 1]
 
   const reviews = shuffle(

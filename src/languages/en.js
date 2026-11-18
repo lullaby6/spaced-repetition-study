@@ -140,6 +140,9 @@ export default {
       tickSuggested: 'Tick suggested',
       checklistHelp: "We already ticked the ones that seem to be in your answer (in green). Check them: tick the ones you included even if you said them differently and untick the ones you didn't.",
       showResult: 'Show result ({count} of {total})',
+      readTitle: 'Read the answer',
+      readHelp: "Take as long as you need. When you're ready, the answer is hidden and you write it from memory.",
+      ready: "I'm ready, write",
       suggested: 'suggested',
       score: '{count} of {total} points ({pct}%)',
     },
@@ -207,6 +210,7 @@ export default {
     order_bank: 'Bank order',
     order_random: 'Random',
     newPerSession: 'New questions per session',
+    maxLearning: 'Questions at once',
     stages: 'Stages',
     stage4Note: '(the hardest)',
     stagesNone: 'Pick at least one stage.',
@@ -390,9 +394,9 @@ export default {
     stage1: 'you read the answer and type it once. You can listen to it aloud or hide it to type it from memory.',
     stage2: 'you fill in the missing key words of a summary. If you get stuck, ask for a hint: first the first letter, then the word.',
     stage3: 'you write the answer in your own words, with some hints in view, and then tick the key points you included.',
-    stage4: 'the same, with no help in view. If you get stuck you can ask for up to 4 hints, but using any brings the question back to stage 4 instead of mastering it.',
+    stage4: "first you read the full answer; when you're ready it is hidden and you write it from memory, with no help in view. If you get stuck you can ask for up to 4 hints, but using any brings the question back to stage 4 instead of mastering it. It is off by default: turn it on when setting up the session.",
     queue:
-      'There are never more than 6 questions being learned at once: they come and go mixed together and, when one is mastered, the next one comes in. With "Back" you can look at the exercises you already did.',
+      'Only a few questions are learned at once (4 by default, you can change it when setting up the session): they come and go mixed together and, when one is mastered, the next one comes in. With "Back" you can look at the exercises you already did.',
     examTitle: 'Mock exam',
     exam: 'Random questions (10, 20, half, all or as many as you want), multiple choice or written with no help, in random or bank order. You can ask for hints one at a time. It does not change your progress, so it is useful to test yourself before the exam.',
     manageTitle: 'Managing your banks and progress',
@@ -440,7 +444,9 @@ export default {
     examSize: 'How many questions the mock exam has. "Half" and "All" are counted over the active questions of the ticked topics. If you pick more than there are, all of them are used.',
     order: "The order in which questions you've never studied come in: following the bank's numbering or shuffled. Questions you already started keep their own pace.",
     newPerSession:
-      "How many questions you've never studied can come into this session. The ones you were already learning or have to review come on top. There are never more than 6 being learned at once: when one is mastered, the next new one comes in, up to this number.",
+      "How many questions you've never studied can come into this session. The ones you were already learning or have to review come on top. There are never more than {max} being learned at once: when one is mastered, the next new one comes in, up to this number.",
+    maxLearning:
+      'How many questions are learned at the same time. They come and go mixed together until mastered, and only then a new one comes in. Fewer at once = they repeat more often and are easier to remember; more = more variety.',
     stage:
       'Every question goes through 4 stages: 1 Copy the answer, 2 Fill in the blanks, 3 Recall it with hints and 4 Recall it with no help. If it goes well it moves up, if it goes so-so you repeat the same one, and if it goes badly it goes back one.',
     status:

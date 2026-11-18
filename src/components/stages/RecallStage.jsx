@@ -4,6 +4,7 @@ import { useEnterHotkey } from '../../hooks/useHotkey.js'
 import { suggestKeyPoints } from '../../lib/text.js'
 import ResultPanel, { AnswerBox } from '../ResultPanel.jsx'
 import { InfoTip } from '../Tooltip.jsx'
+import MarkedText from '../MarkedText.jsx'
 
 export function recallResult(ratio) {
   if (ratio >= 1) return 'passed'
@@ -49,6 +50,7 @@ export default function RecallStage({
   withHints,
   askHints = false,
   hintsCapResult = false,
+  readFirst = false,
   outcomeFor,
   practice,
   onDone,
@@ -56,8 +58,9 @@ export default function RecallStage({
 }) {
   const { t } = useI18n()
   const [typed, setTyped] = useState('')
-  // writing → comparing (tick the key points; the result is not shown yet) → assessed; or gaveUp.
-  const [phase, setPhase] = useState('writing')
+  // [reading →] writing → comparing (tick the key points; the result is not shown yet) → assessed; or gaveUp.
+  // With `readFirst` the answer is shown first; "I'm ready" hides it and the user writes it from memory.
+  const [phase, setPhase] = useState(readFirst ? 'reading' : 'writing')
   const [ticked, setTicked] = useState(() => question.keyPoints.map(() => false))
   const [hintLevel, setHintLevel] = useState(0)
   const nextHint = WRITE_HINT_LEVELS[hintLevel]
@@ -71,6 +74,7 @@ export default function RecallStage({
     setTicked(suggestKeyPoints(question.keyPoints, typed))
     setPhase('comparing')
   }
+  useEnterHotkey(() => setPhase('writing'), phase === 'reading')
   useEnterHotkey(compare, phase === 'writing')
   useEnterHotkey(() => setPhase('assessed'), phase === 'comparing')
 
@@ -81,6 +85,26 @@ export default function RecallStage({
   const result = capped ? 'partial' : recallResult(ratio)
   const showFullAnswer = !withHints || phase === 'gaveUp'
   const record = { result, ratio, response: { typed, ticked, gaveUp: phase === 'gaveUp', hintsUsed: hintLevel } }
+
+  if (phase === 'reading') {
+    return (
+      <div className="space-y-4">
+        <div className="rounded-box border border-primary/30 bg-primary/5 p-4">
+          <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-primary">{t('stages.recall.readTitle')}</div>
+          <p className="select-none leading-relaxed">
+            <MarkedText text={question.answer} keywords={question.cloze.blanks} />
+          </p>
+        </div>
+        <p className="text-sm opacity-70">{t('stages.recall.readHelp')}</p>
+        <div className="flex justify-end">
+          <button type="button" className="btn btn-primary w-full sm:w-auto" onClick={() => setPhase('writing')} autoFocus>
+            {t('stages.recall.ready')}
+            <kbd className="kbd kbd-sm hidden sm:inline-flex">Enter</kbd>
+          </button>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-4">

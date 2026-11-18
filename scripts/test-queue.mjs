@@ -110,6 +110,17 @@ assert.ok(next - Date.now() > 2.9 * 24 * 3600 * 1000, 'next review in 3 days')
   assert.deepEqual(describeOutcome({ key: '1', stage: 2, kind: 'learn' }, 'failed', fromTwo.session).params.stage, 2)
 }
 
+// How many questions are learned at once is configurable.
+{
+  const { session: s } = startSession(bank, {}, { ...settings, maxLearning: 4 })
+  assert.equal(new Set(s.queue.map((i) => i.key)).size, 4)
+  let { session: s2, progress: p2 } = startSession(bank, {}, { ...settings, maxLearning: 2 })
+  for (let i = 0; i < 20 && s2.queue.length; i++) {
+    assert.ok(new Set(s2.queue.filter((x) => x.kind === 'learn').map((x) => x.key)).size <= 2)
+    ;({ session: s2, progress: p2 } = recordResult(s2, p2, 'passed'))
+  }
+}
+
 // "Don't go back on failure": a failure repeats the same stage.
 {
   const keep = { ...settings, noBacktrack: true }

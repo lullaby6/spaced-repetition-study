@@ -10,6 +10,7 @@ export default function SetupScreen({ purpose, topics, topicCounts, settings, ha
   const [selected, setSelected] = useState(() => new Set((settings.topics || topics).filter((tp) => topics.includes(tp))))
   const [order, setOrder] = useState(settings.order)
   const [newPerSession, setNewPerSession] = useState(settings.newPerSession)
+  const [maxLearning, setMaxLearning] = useState(settings.maxLearning ?? 4)
   const [stages, setStages] = useState(() => new Set(settings.stages ?? [1, 2, 3]))
   const [noBacktrack, setNoBacktrack] = useState(!!settings.noBacktrack)
   const toggleStage = (stage) =>
@@ -47,6 +48,7 @@ export default function SetupScreen({ purpose, topics, topicCounts, settings, ha
       topics: chosen.length === topics.length ? null : chosen,
       order,
       newPerSession: Math.max(1, Math.min(500, Number(newPerSession) || 15)),
+      maxLearning: Math.max(1, Math.min(50, Math.floor(Number(maxLearning)) || 4)),
       stages: [1, 2, 3, 4].filter((s) => stages.has(s)),
       noBacktrack,
       examMode,
@@ -207,23 +209,43 @@ export default function SetupScreen({ purpose, topics, topicCounts, settings, ha
               </div>
             </fieldset>
 
-            <div className="max-w-xs space-y-1">
-              <div className="flex items-center gap-1">
-                <label htmlFor="new-per-session" className="font-semibold">
-                  {t('setup.newPerSession')}
-                </label>
-                <InfoTip text={t('info.newPerSession')} side="right" />
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-1">
+                <div className="flex items-center gap-1">
+                  <label htmlFor="new-per-session" className="font-semibold">
+                    {t('setup.newPerSession')}
+                  </label>
+                  <InfoTip text={t('info.newPerSession', { max: Number(maxLearning) || 4 })} side="right" />
+                </div>
+                <input
+                  id="new-per-session"
+                  type="number"
+                  min="1"
+                  max="500"
+                  inputMode="numeric"
+                  className="input input-bordered w-full"
+                  value={newPerSession}
+                  onChange={(e) => setNewPerSession(e.target.value)}
+                />
               </div>
-              <input
-                id="new-per-session"
-                type="number"
-                min="1"
-                max="500"
-                inputMode="numeric"
-                className="input input-bordered w-full"
-                value={newPerSession}
-                onChange={(e) => setNewPerSession(e.target.value)}
-              />
+              <div className="space-y-1">
+                <div className="flex items-center gap-1">
+                  <label htmlFor="max-learning" className="font-semibold">
+                    {t('setup.maxLearning')}
+                  </label>
+                  <InfoTip text={t('info.maxLearning')} />
+                </div>
+                <input
+                  id="max-learning"
+                  type="number"
+                  min="1"
+                  max="50"
+                  inputMode="numeric"
+                  className="input input-bordered w-full"
+                  value={maxLearning}
+                  onChange={(e) => setMaxLearning(e.target.value)}
+                />
+              </div>
             </div>
             {hasSession && <p className="text-sm text-warning">{t('setup.replacesSession')}</p>}
           </>

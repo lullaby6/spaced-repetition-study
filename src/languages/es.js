@@ -140,6 +140,9 @@ export default {
       tickSuggested: 'Marcar sugeridos',
       checklistHelp: 'Ya marcamos los que parecen estar en tu respuesta (en verde). Revisá: marcá los que incluiste aunque los hayas dicho con otras palabras y desmarcá los que no.',
       showResult: 'Ver resultado ({count} de {total})',
+      readTitle: 'Leé la respuesta',
+      readHelp: 'Tomate el tiempo que necesites. Cuando estés listo, la respuesta se oculta y la escribís de memoria.',
+      ready: 'Estoy listo, escribir',
       suggested: 'sugerido',
       score: '{count} de {total} puntos ({pct}%)',
     },
@@ -207,6 +210,7 @@ export default {
     order_bank: 'El del banco',
     order_random: 'Aleatorio',
     newPerSession: 'Preguntas nuevas por sesión',
+    maxLearning: 'Preguntas a la vez',
     stages: 'Etapas',
     stage4Note: '(la más difícil)',
     stagesNone: 'Elegí al menos una etapa.',
@@ -390,9 +394,9 @@ export default {
     stage1: 'leés la respuesta y la escribís una vez. Podés escucharla en voz alta u ocultarla para escribirla de memoria.',
     stage2: 'completás las palabras clave que faltan en un resumen. Si te trabás, pedí una pista: primero la primera letra, después la palabra.',
     stage3: 'escribís la respuesta con tus palabras, con algunas pistas a la vista, y después marcás qué puntos clave incluiste.',
-    stage4: 'lo mismo, sin ayuda a la vista. Si te trabás podés pedir hasta 4 pistas, pero si usás alguna la pregunta vuelve a la etapa 4 en vez de quedar dominada.',
+    stage4: 'primero leés la respuesta completa; cuando estás listo se oculta y la escribís de memoria, sin ayuda a la vista. Si te trabás podés pedir hasta 4 pistas, pero si usás alguna la pregunta vuelve a la etapa 4 en vez de quedar dominada. Viene desactivada: la activás al configurar la sesión.',
     queue:
-      'Nunca hay más de 6 preguntas aprendiéndose a la vez: van y vuelven intercaladas y, cuando una se domina, entra la siguiente. Con "Atrás" podés mirar los ejercicios que ya hiciste.',
+      'Hay pocas preguntas aprendiéndose a la vez (4 por defecto, lo cambiás al configurar la sesión): van y vuelven intercaladas y, cuando una se domina, entra la siguiente. Con "Atrás" podés mirar los ejercicios que ya hiciste.',
     examTitle: 'Simulacro de examen',
     exam: 'Preguntas al azar (10, 20, la mitad, todas o las que quieras), de opción múltiple o para escribir sin ayuda, en orden aleatorio o el del banco. Podés pedir pistas de a una. No cambia tu progreso, así que sirve para medirte antes del examen.',
     manageTitle: 'Organizar tus bancos y tu progreso',
@@ -440,7 +444,9 @@ export default {
     examSize: 'Cuántas preguntas tiene el simulacro. "La mitad" y "Todas" se calculan sobre las preguntas activas de los temas marcados. Si elegís más de las que hay, se usan todas.',
     order: 'En qué orden entran las preguntas que nunca estudiaste: siguiendo la numeración del banco o mezcladas al azar. Las que ya empezaste siguen su propio ritmo.',
     newPerSession:
-      'Cuántas preguntas que nunca estudiaste pueden entrar en esta sesión. Las que ya venías aprendiendo o tenés que repasar se suman aparte. Nunca hay más de 6 aprendiéndose a la vez: cuando una se domina, entra la siguiente nueva, hasta llegar a este número.',
+      'Cuántas preguntas que nunca estudiaste pueden entrar en esta sesión. Las que ya venías aprendiendo o tenés que repasar se suman aparte. Nunca hay más de {max} aprendiéndose a la vez: cuando una se domina, entra la siguiente nueva, hasta llegar a este número.',
+    maxLearning:
+      'Cuántas preguntas se aprenden al mismo tiempo. Van y vuelven intercaladas hasta dominarse, y recién ahí entra otra nueva. Menos preguntas a la vez = se repiten más seguido y cuesta menos retenerlas; más = más variedad.',
     stage:
       'Cada pregunta pasa por 4 etapas: 1 Copiar la respuesta, 2 Completar huecos, 3 Recordarla con pistas y 4 Recordarla sin ayuda. Si te va bien avanza a la siguiente, si te va más o menos repetís la misma y si te va mal vuelve a la anterior.',
     status:
