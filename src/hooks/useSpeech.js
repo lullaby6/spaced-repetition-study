@@ -33,6 +33,7 @@ export function useSpeech() {
   const run = useRef(0) // ignores events from cancelled utterances
   const resumeAt = useRef(0)
   const current = useRef({ text: '', lang: '' })
+  const utterances = useRef([])
 
   const clear = () => {
     setStatus('idle')
@@ -59,8 +60,9 @@ export function useSpeech() {
     if (!parts.length) return clear()
     // Prefer an installed voice for that language; otherwise the browser picks one from `lang`.
     const voice = synth.getVoices().find((v) => v.lang.toLowerCase().startsWith(lang))
-    // One utterance per sentence: some browsers cut long utterances off after a few seconds.
-    parts.forEach((part, i) => {
+    // One utterance per sentence: some browsers cut long utterances off after a few seconds. They are
+    // kept in a ref so Chrome can't garbage-collect them mid-speech (it then never fires their events).
+    utterances.current = parts.map((part, i) => {
       const utterance = new SpeechSynthesisUtterance(part.text)
       utterance.lang = lang
       utterance.rate = 0.95
@@ -81,6 +83,7 @@ export function useSpeech() {
       utterance.onerror = () => run.current === id && clear()
       if (i === parts.length - 1) utterance.onend = () => run.current === id && clear()
       synth.speak(utterance)
+      return utterance
     })
     setStatus('speaking')
   }, [])

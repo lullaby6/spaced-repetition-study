@@ -50,12 +50,22 @@ export default function HelpScreen({ onShowAiPrompt, onStart }) {
         <p>{t('help.exam')}</p>
       </Section>
 
+      <Section title={t('listen.title')}>
+        <p>{t('help.listen')}</p>
+        <ul className="list-inside list-disc space-y-1">
+          <li>{t('help.listenControls')}</li>
+          <li>{t('help.listenOptions')}</li>
+          <li>{t('help.listenSaved')}</li>
+        </ul>
+      </Section>
+
       <Section title={t('help.manageTitle')}>
         <ul className="list-inside list-disc space-y-1">
           <li>{t('help.manageBanks')}</li>
           <li>{t('help.manageEdit')}</li>
           <li>{t('help.manageProgress')}</li>
           <li>{t('help.manageData')}</li>
+          <li>{t('help.manageTrash')}</li>
         </ul>
       </Section>
 

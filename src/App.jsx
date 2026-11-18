@@ -6,6 +6,7 @@ import { buildBackup, createBank, DEFAULT_SETTINGS, downloadJson, downloadText, 
 import { parseCloze, serializeBank } from './lib/parser.js'
 import EditorScreen from './screens/EditorScreen.jsx'
 import HelpScreen from './screens/HelpScreen.jsx'
+import ListenScreen from './screens/ListenScreen.jsx'
 import { shuffle } from './lib/text.js'
 import { buildChoice, DEFAULT_EXAM_SIZE, resolveExamSize } from './lib/exam.js'
 import { makeTrashId, removeFromTrash, restoreFromTrash, trashAllBanks, trashBank, trashBankCopy, trashProgress, trashQuestion } from './lib/trash.js'
@@ -147,6 +148,12 @@ export default function App() {
     }
     updateActive(() => ({ progress: r.progress, session: r.session }))
   }
+
+  // "Learn by listening" settings, kept per bank.
+  const saveListenSettings = useCallback(
+    (listen) => updateActive((b) => ({ settings: { ...b.settings, listen } })),
+    [updateActive],
+  )
 
   // ---- Progress of single questions ----
   // The progress it had is kept in the trash (restorable).
@@ -562,6 +569,7 @@ export default function App() {
             onStartOver={() => setModal({ kind: 'reset' })}
             onShowAiPrompt={() => setModal({ kind: 'aiPrompt' })}
             onShowHelp={() => setView('help')}
+            onListen={() => setView('listen')}
             deletedBanks={trashCount(['bank'])}
             onOpenDeletedBanks={() => openTrash({ types: ['bank'] }, 'trash.banksTitle')}
           />
@@ -585,7 +593,12 @@ export default function App() {
             bankByKey={bankByKey}
             counts={counts}
             onResult={handleResult}
-            onSkip={() => updateActive((b) => ({ session: skipCurrent(b.session) }))}
+            onSkip={() => {
+              // Skipped exercises leave the session; skipping the last one ends it.
+              const next = skipCurrent(session, progress)
+              if (!next.queue.length) return finishSession(next)
+              updateActive(() => ({ session: next }))
+            }}
             onBackToSkipped={() => updateActive((b) => ({ session: backToSkipped(b.session) }))}
             onJump={(key) => updateActive((b) => ({ session: jumpTo(b.session, key) }))}
             onToggle={toggleInStudy}
@@ -624,6 +637,15 @@ export default function App() {
             onResetAll={() => setModal({ kind: 'reset' })}
             resetCount={trashCount(['progress'], library.activeId)}
             onOpenResets={() => openTrash({ types: ['progress'], bankId: library.activeId }, 'trash.progressTitle')}
+          />
+        )}
+        {view === 'listen' && active && (
+          <ListenScreen
+            key={library.activeId}
+            questions={activeQuestions}
+            saved={settings.listen ?? {}}
+            onSave={saveListenSettings}
+            onBack={() => setView('home')}
           />
         )}
         {view === 'help' && (

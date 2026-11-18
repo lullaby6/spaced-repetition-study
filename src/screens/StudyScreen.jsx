@@ -72,13 +72,8 @@ export default function StudyScreen({
               </button>
             </Tooltip>
           )}
-          <Tooltip text={session.queue.length < 2 ? t('study.skipNone') : t('study.skipHelp')} side="bottom">
-            <button
-              type="button"
-              className="btn btn-outline btn-sm"
-              onClick={onSkip}
-              disabled={session.queue.length < 2 || position !== null}
-            >
+          <Tooltip text={session.queue.length < 2 ? t('study.skipLast') : t('study.skipHelp')} side="bottom">
+            <button type="button" className="btn btn-outline btn-sm" onClick={onSkip} disabled={position !== null}>
               {t('study.skip')}
               <svg viewBox="0 0 24 24" className="size-4" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
                 <path d="m5 5 7 7-7 7M13 5l7 7-7 7" strokeLinecap="round" strokeLinejoin="round" />

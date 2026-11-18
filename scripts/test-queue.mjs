@@ -129,15 +129,17 @@ assert.ok(next - Date.now() > 2.9 * 24 * 3600 * 1000, 'next review in 3 days')
   assert.equal(describeOutcome({ key: '1', stage: 3, kind: 'learn' }, 'failed', { options: { stages: [1, 2, 3, 4] } }).params.stage, 2, 'default goes back')
 }
 
-// Skipping: the exercise goes to the end, nothing is recorded.
+// Skipping: the exercise leaves the session (does not come back by itself), nothing is recorded.
 {
   const { session: s, progress: p } = startSession(bank, {}, settings)
   const skipped = skipCurrent(s)
-  assert.deepEqual(skipped.queue.at(-1), s.queue[0])
-  assert.equal(skipped.queue.length, s.queue.length)
+  assert.ok(!skipped.queue.some((i) => i.key === s.queue[0].key), 'not in the queue anymore')
+  assert.deepEqual(skipped.skippedItems, [s.queue[0]])
   assert.equal(skipped.log.length, 0)
   assert.notEqual(skipped.counter, s.counter)
-  assert.equal(skipCurrent({ ...s, queue: [s.queue[0]] }).queue.length, 1, 'nothing to skip to')
+  assert.equal(skipCurrent({ ...s, queue: [s.queue[0]] }).queue.length, 0, 'skipping the last one ends the session')
+  const refilled = skipCurrent(s, p)
+  assert.equal(new Set(refilled.queue.map((i) => i.key)).size, s.queue.length, 'with progress, a new question fills the slot')
   assert.equal(p['1'].attempts, 0)
 
   // Going back: skip 1 and 2, then return to 2, then to 1; the current one becomes the next.

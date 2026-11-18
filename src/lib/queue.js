@@ -219,32 +219,42 @@ export function recordResult(session, progress, result, response = null) {
   return refill(nextSession, { ...progress, [item.key]: p })
 }
 
-// Skips the current exercise: it goes to the end of the queue, with no result and no progress change.
-// Its key is remembered in `skipped` so the user can go back to it. `counter` changes so the screen
-// shows a fresh exercise.
-export function skipCurrent(session) {
-  if (!session || session.queue.length < 2) return session
+// Skips the current exercise: it leaves the session's queue (no result, no progress change) and does
+// not come back by itself; it is kept in `skippedItems` so the user can go back to it. With `progress`
+// a new question may fill the freed slot. When nothing is left, the queue is empty and the session
+// ends. `counter` changes so the screen shows a fresh exercise.
+export function skipCurrent(session, progress = null) {
+  if (!session?.queue.length) return session
   const [item, ...rest] = session.queue
   const skipped = [...(session.skipped ?? []).filter((k) => k !== item.key), item.key]
-  return { ...session, queue: [...rest, item], skipped, counter: session.counter + 1 }
+  const skippedItems = [...(session.skippedItems ?? []).filter((i) => i.key !== item.key), item]
+  const next = { ...session, queue: rest, skipped, skippedItems, counter: session.counter + 1 }
+  return progress ? refill(next, progress).session : next
 }
 
-// The most recently skipped question that is still waiting in the queue, or null.
+// The most recently skipped question that can still be gone back to, or null.
 export function lastSkipped(session) {
-  const queued = new Set(session?.queue.slice(1).map((i) => i.key))
-  return [...(session?.skipped ?? [])].reverse().find((k) => queued.has(k)) ?? null
+  const waiting = new Set([...(session?.skippedItems ?? []).map((i) => i.key), ...(session?.queue.slice(1).map((i) => i.key) ?? [])])
+  return [...(session?.skipped ?? [])].reverse().find((k) => waiting.has(k)) ?? null
 }
 
-// Brings a waiting exercise of question `key` to the front; the current one becomes the next.
+// Brings question `key` to the front (a waiting exercise or a skipped one); the current one becomes the next.
 export function jumpTo(session, key) {
-  const index = session?.queue.findIndex((i, n) => n > 0 && i.key === key) ?? -1
-  if (index < 1) return session
-  const queue = [...session.queue]
-  const [item] = queue.splice(index, 1)
+  if (!session) return session
+  const skippedItem = (session.skippedItems ?? []).find((i) => i.key === key)
+  let queue = [...session.queue]
+  let item = skippedItem
+  if (!item) {
+    const index = queue.findIndex((i, n) => n > 0 && i.key === key)
+    if (index < 1) return session
+    ;[item] = queue.splice(index, 1)
+  }
+  queue = [item, ...queue]
   return {
     ...session,
-    queue: [item, ...queue],
+    queue,
     skipped: (session.skipped ?? []).filter((k) => k !== key),
+    skippedItems: (session.skippedItems ?? []).filter((i) => i.key !== key),
     counter: session.counter + 1,
   }
 }
@@ -295,6 +305,7 @@ export function excludeFromSession(session, progress, key) {
   if (!session) return session
   const item =
     session.queue.find((i) => i.key === key) ??
+    (session.skippedItems ?? []).find((i) => i.key === key) ??
     (session.pendingNew.includes(key) ? { key, stage: optionsOf(session).stages[0], kind: 'learn' } : null)
   if (!item) return session
   const trimmed = {
@@ -302,6 +313,7 @@ export function excludeFromSession(session, progress, key) {
     queue: session.queue.filter((i) => i.key !== key),
     pendingNew: session.pendingNew.filter((k) => k !== key),
     skipped: (session.skipped ?? []).filter((k) => k !== key),
+    skippedItems: (session.skippedItems ?? []).filter((i) => i.key !== key),
     excluded: [...(session.excluded ?? []).filter((i) => i.key !== key), item],
   }
   const r = refill(trimmed, progress)

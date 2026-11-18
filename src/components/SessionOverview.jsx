@@ -30,25 +30,31 @@ function IconButton({ label, danger = false, onClick, children }) {
 // Rows for a study session: every question seen or waiting, in the order they appeared.
 export function studyOverviewRows(session, progress) {
   const excluded = session.excluded ?? []
+  const skippedItems = session.skippedItems ?? []
   const keys = [
-    ...new Set([...session.log.map((l) => l.key), ...session.queue.map((i) => i.key), ...excluded.map((i) => i.key)]),
+    ...new Set([
+      ...session.log.map((l) => l.key),
+      ...session.queue.map((i) => i.key),
+      ...skippedItems.map((i) => i.key),
+      ...excluded.map((i) => i.key),
+    ]),
   ]
-  const skipped = new Set(session.skipped ?? [])
   return keys.map((key) => {
     const entries = session.log.map((l, index) => ({ ...l, index })).filter((l) => l.key === key)
     const queued = session.queue.find((i) => i.key === key)
+    const skippedItem = skippedItems.find((i) => i.key === key)
     const off = excluded.find((i) => i.key === key)
     let state = 'answered'
     if (off) state = 'excluded'
+    else if (skippedItem) state = 'skipped'
     else if (session.queue[0]?.key === key) state = 'current'
-    else if (queued && skipped.has(key)) state = 'skipped'
     else if (queued) state = 'pending'
     else if (progress[key]?.status === 'mastered') state = 'mastered'
     return {
       key,
       state,
-      nextStage: queued?.stage ?? off?.stage ?? null,
-      canToggle: !!(off || queued),
+      nextStage: queued?.stage ?? skippedItem?.stage ?? off?.stage ?? null,
+      canToggle: !!(off || queued || skippedItem),
       attempts: entries.map((e) => ({ stage: e.stage, result: e.result, index: e.index })),
       hints: entries.reduce((sum, e) => sum + (e.response?.hintsUsed || 0), 0),
     }

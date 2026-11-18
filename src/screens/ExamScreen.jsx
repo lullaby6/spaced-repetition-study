@@ -41,6 +41,10 @@ export default function ExamScreen({
     onAnswer(record)
   }
   const isLast = exam.index >= exam.keys.length - 1
+  // In random order, the question that comes before this one in the bank is shown as context
+  // (questions often build on the previous one).
+  const bankOrder = [...bankByKey.keys()]
+  const previousInBank = exam.order !== 'bank' ? bankByKey.get(bankOrder[bankOrder.indexOf(question.key) - 1]) : null
 
   return (
     <div className="space-y-4">
@@ -97,7 +101,13 @@ export default function ExamScreen({
         </QuestionCard>
       )}
 
-      <div className={past ? 'hidden' : ''}>
+      <div className={past ? 'hidden' : 'space-y-3'}>
+        {previousInBank && (
+          <div className="rounded-box border border-base-300 bg-base-100/60 px-4 py-2 text-sm">
+            <span className="font-semibold opacity-70">{t('exam.previousInBank', { id: previousInBank.id })}</span>{' '}
+            <span className="opacity-80">{previousInBank.question}</span>
+          </div>
+        )}
         <HotkeysActiveContext.Provider value={!past}>
           {/* keyed by position and question so a skipped question's exercise starts fresh */}
           <QuestionCard key={`${exam.index}-${question.key}`} question={question} badges={badge}>
