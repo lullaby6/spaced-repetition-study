@@ -40,9 +40,20 @@ function keyPointStart(point) {
 }
 
 // Stages 3 (with hints) and 4 (no help): write the key points, then self-assess with a checklist.
-// Also used by the mock exam, where `outcomeFor` is null and progress is not affected; there
+// Also used by the mock exam, where `outcomeFor` is null and progress is not affected.
 // `askHints` lets the user reveal help step by step (WRITE_HINT_LEVELS), recorded as hintsUsed.
-export default function RecallStage({ question, withHints, askHints = false, outcomeFor, practice, onDone, onRetry }) {
+// With `hintsCapResult` (stage 4 of a study session) using any hint turns a pass into "partial",
+// so a question is only mastered when recalled with no help.
+export default function RecallStage({
+  question,
+  withHints,
+  askHints = false,
+  hintsCapResult = false,
+  outcomeFor,
+  practice,
+  onDone,
+  onRetry,
+}) {
   const { t } = useI18n()
   const [typed, setTyped] = useState('')
   const [phase, setPhase] = useState('writing') // writing | comparing | gaveUp
@@ -59,7 +70,8 @@ export default function RecallStage({ question, withHints, askHints = false, out
   const total = question.keyPoints.length
   const count = ticked.filter(Boolean).length
   const ratio = phase === 'gaveUp' ? 0 : count / total
-  const result = recallResult(ratio)
+  const capped = hintsCapResult && hintLevel > 0 && recallResult(ratio) === 'passed'
+  const result = capped ? 'partial' : recallResult(ratio)
   const showFullAnswer = !withHints || phase === 'gaveUp'
   const record = { result, ratio, response: { typed, ticked, gaveUp: phase === 'gaveUp', hintsUsed: hintLevel } }
 
@@ -207,6 +219,7 @@ export default function RecallStage({ question, withHints, askHints = false, out
             detail={[
               phase === 'gaveUp' ? null : t('stages.recall.score', { count, total, pct: Math.round(ratio * 100) }),
               hintLevel ? t('choice.hintsUsed', { count: hintLevel }) : null,
+              capped ? t('writeHints.capped') : null,
             ]
               .filter(Boolean)
               .join(' · ') || null}

@@ -1,15 +1,15 @@
 import { useState } from 'react'
 import { useI18n } from '../i18n.jsx'
 import { HotkeysActiveContext } from '../hooks/useHotkey.js'
-import { describeOutcome } from '../lib/queue.js'
+import { describeOutcome, lastSkipped } from '../lib/queue.js'
 import QuestionCard from '../components/QuestionCard.jsx'
 import StatusBar from '../components/StatusBar.jsx'
 import Exercise from '../components/Exercise.jsx'
 import HistoryNav from '../components/HistoryNav.jsx'
-import { InfoTip } from '../components/Tooltip.jsx'
+import Tooltip, { InfoTip } from '../components/Tooltip.jsx'
 import PastExercise from '../components/PastExercise.jsx'
 
-export default function StudyScreen({ session, bankByKey, counts, onResult, onFinish }) {
+export default function StudyScreen({ session, bankByKey, counts, onResult, onSkip, onBackToSkipped, onFinish }) {
   const { t } = useI18n()
   const [position, setPosition] = useState(null) // index in session.log, or null for the current exercise
   const item = session.queue[0]
@@ -18,6 +18,7 @@ export default function StudyScreen({ session, bankByKey, counts, onResult, onFi
 
   const reviewBadge = (kind) =>
     kind === 'review' ? <span className="badge badge-secondary badge-soft">{t('exercise.reviewBadge')}</span> : null
+  const skippedKey = lastSkipped(session)
   const past = position !== null ? session.log[position] : null
   const pastQuestion = past && bankByKey.get(past.key)
 
@@ -27,9 +28,34 @@ export default function StudyScreen({ session, bankByKey, counts, onResult, onFi
         <div className="text-sm opacity-70">
           {t('study.sessionInfo', { done: session.log.length, pending: session.queue.length })} <InfoTip text={t('info.queue')} />
         </div>
-        <button type="button" className="btn btn-ghost btn-sm" onClick={onFinish}>
-          {t('study.finish')}
-        </button>
+        <div className="flex flex-wrap items-center gap-1">
+          {skippedKey && (
+            <Tooltip text={t('study.backToSkippedHelp', { id: bankByKey.get(skippedKey)?.id ?? '' })} side="bottom">
+              <button type="button" className="btn btn-outline btn-sm" onClick={onBackToSkipped} disabled={position !== null}>
+                <svg viewBox="0 0 24 24" className="size-4" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+                  <path d="M9 14 4 9l5-5M4 9h11a5 5 0 0 1 0 10h-3" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+                {t('study.backToSkipped')}
+              </button>
+            </Tooltip>
+          )}
+          <Tooltip text={session.queue.length < 2 ? t('study.skipNone') : t('study.skipHelp')} side="bottom">
+            <button
+              type="button"
+              className="btn btn-outline btn-sm"
+              onClick={onSkip}
+              disabled={session.queue.length < 2 || position !== null}
+            >
+              {t('study.skip')}
+              <svg viewBox="0 0 24 24" className="size-4" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+                <path d="m5 5 7 7-7 7M13 5l7 7-7 7" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </button>
+          </Tooltip>
+          <button type="button" className="btn btn-ghost btn-sm" onClick={onFinish}>
+            {t('study.finish')}
+          </button>
+        </div>
       </div>
       <StatusBar counts={counts} compact />
       <HistoryNav position={position} total={session.log.length} onMove={setPosition} />

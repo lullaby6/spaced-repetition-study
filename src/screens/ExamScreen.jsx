@@ -6,10 +6,11 @@ import Exercise from '../components/Exercise.jsx'
 import HistoryNav from '../components/HistoryNav.jsx'
 import PastExercise from '../components/PastExercise.jsx'
 import ChoiceStage from '../components/stages/ChoiceStage.jsx'
+import Tooltip from '../components/Tooltip.jsx'
 
 // Mock exam, without touching progress. exam.mode is 'write' (stage 4: recall with no help) or
 // 'choice' (multiple choice; exam.options[key] are the option keys for each question).
-export default function ExamScreen({ exam, bankByKey, onAnswer, onQuit }) {
+export default function ExamScreen({ exam, bankByKey, skippedKey, onAnswer, onSkip, onBackToSkipped, onQuit }) {
   const { t } = useI18n()
   const [position, setPosition] = useState(null)
   const question = bankByKey.get(exam.keys[exam.index])
@@ -25,14 +26,35 @@ export default function ExamScreen({ exam, bankByKey, onAnswer, onQuit }) {
     setPosition(null)
     onAnswer(record)
   }
+  const isLast = exam.index >= exam.keys.length - 1
 
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-2">
         <span className="text-sm opacity-70">{t('exam.progress', { n: exam.index + 1, total: exam.keys.length })}</span>
-        <button type="button" className="btn btn-ghost btn-sm" onClick={onQuit}>
-          {t('exam.quit')}
-        </button>
+        <div className="flex flex-wrap items-center justify-end gap-1">
+          {skippedKey && (
+            <Tooltip text={t('study.backToSkippedHelp', { id: bankByKey.get(skippedKey)?.id ?? '' })} side="bottom">
+              <button type="button" className="btn btn-outline btn-sm" onClick={onBackToSkipped} disabled={past !== null}>
+                <svg viewBox="0 0 24 24" className="size-4" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+                  <path d="M9 14 4 9l5-5M4 9h11a5 5 0 0 1 0 10h-3" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+                {t('study.backToSkipped')}
+              </button>
+            </Tooltip>
+          )}
+          <Tooltip text={isLast ? t('exam.leaveBlankHelp') : t('exam.skipHelp')} side="bottom">
+            <button type="button" className="btn btn-outline btn-sm" onClick={onSkip} disabled={past !== null}>
+              {isLast ? t('exam.leaveBlank') : t('study.skip')}
+              <svg viewBox="0 0 24 24" className="size-4" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+                <path d="m5 5 7 7-7 7M13 5l7 7-7 7" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </button>
+          </Tooltip>
+          <button type="button" className="btn btn-ghost btn-sm" onClick={onQuit}>
+            {t('exam.quit')}
+          </button>
+        </div>
       </div>
       <progress className="progress progress-primary w-full" value={pct} max="100" />
       <HistoryNav position={position} total={exam.results.length} onMove={setPosition} />
@@ -45,11 +67,12 @@ export default function ExamScreen({ exam, bankByKey, onAnswer, onQuit }) {
 
       <div className={past ? 'hidden' : ''}>
         <HotkeysActiveContext.Provider value={!past}>
-          <QuestionCard key={exam.index} question={question} badges={badge}>
+          {/* keyed by position and question so a skipped question's exercise starts fresh */}
+          <QuestionCard key={`${exam.index}-${question.key}`} question={question} badges={badge}>
             {isChoice ? (
               <ChoiceStage question={question} optionKeys={exam.options[question.key]} bankByKey={bankByKey} onDone={finish} />
             ) : (
-              <Exercise question={question} stage={4} outcomeFor={null} askHints onDone={finish} />
+              <Exercise question={question} stage={4} outcomeFor={null} onDone={finish} />
             )}
           </QuestionCard>
         </HotkeysActiveContext.Provider>
@@ -65,7 +88,13 @@ export function ExamSummaryScreen({ exam, bankByKey, onRetry, onHome }) {
   const rightCount = exam.results.filter((r) => r.ratio >= 1).length
   const hintsUsed = exam.results.reduce((a, r) => a + (r.response?.hintsUsed || 0), 0)
   const showHints = isChoice || hintsUsed > 0
+  const skippedCount = exam.results.filter((r) => r.result === 'skipped').length
   const tone = (ratio) => (ratio >= 1 ? 'text-success' : ratio >= 0.5 ? 'text-warning' : 'text-error')
+  const resultText = ({ result, ratio }) => {
+    if (result === 'skipped') return t('exam.skipped')
+    if (isChoice) return ratio >= 1 ? `✓ ${t('choice.right')}` : `✗ ${t('choice.wrong')}`
+    return `${Math.round(ratio * 100)}%`
+  }
 
   return (
     <div className="space-y-4">
@@ -77,6 +106,7 @@ export function ExamSummaryScreen({ exam, bankByKey, onRetry, onHome }) {
             {isChoice ? t('choice.score', { right: rightCount, total: exam.results.length }) : t('exam.average')}
           </p>
           {hintsUsed > 0 && <p className="text-sm opacity-60">{t('choice.totalHints', { count: hintsUsed })}</p>}
+          {skippedCount > 0 && <p className="text-sm opacity-60">{t('exam.skippedCount', { count: skippedCount })}</p>}
         </div>
       </div>
       <div className="overflow-x-auto rounded-box border border-base-300 bg-base-100">
@@ -90,15 +120,16 @@ export function ExamSummaryScreen({ exam, bankByKey, onRetry, onHome }) {
             </tr>
           </thead>
           <tbody>
-            {exam.results.map(({ key, ratio, response }) => {
+            {exam.results.map((entry) => {
+              const { key, ratio, response, result } = entry
               const q = bankByKey.get(key)
               return (
                 <tr key={key}>
                   <td className="font-semibold">{q?.id}</td>
                   <td>{q?.question}</td>
                   {showHints && <td className="text-right opacity-70">{response?.hintsUsed || '—'}</td>}
-                  <td className={`whitespace-nowrap text-right font-semibold ${tone(ratio)}`}>
-                    {isChoice ? (ratio >= 1 ? `✓ ${t('choice.right')}` : `✗ ${t('choice.wrong')}`) : `${Math.round(ratio * 100)}%`}
+                  <td className={`whitespace-nowrap text-right font-semibold ${result === 'skipped' ? 'opacity-60' : tone(ratio)}`}>
+                    {resultText(entry)}
                   </td>
                 </tr>
               )

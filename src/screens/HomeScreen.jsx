@@ -43,6 +43,7 @@ export default function HomeScreen({
   onExam,
   onStartOver,
   onShowAiPrompt,
+  onShowHelp,
 }) {
   const { t } = useI18n()
   const fileRef = useRef(null)
@@ -72,6 +73,16 @@ export default function HomeScreen({
     </button>
   )
 
+  const helpButton = (
+    <button type="button" className="btn btn-ghost" onClick={onShowHelp}>
+      <svg viewBox="0 0 24 24" className="size-4" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+        <circle cx="12" cy="12" r="9" />
+        <path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.6v.6M12 17v.5" strokeLinecap="round" />
+      </svg>
+      {t('home.howItWorks')}
+    </button>
+  )
+
   return (
     <div className="space-y-6">
       {!hasBank && (
@@ -79,7 +90,10 @@ export default function HomeScreen({
           <div className="card-body items-center gap-3 p-6 text-center">
             <h2 className="card-title">{t('home.emptyTitle')}</h2>
             <p className="max-w-prose opacity-70">{t('home.emptyHelp')}</p>
-            {aiButton}
+            <div className="flex flex-wrap justify-center gap-2">
+              {aiButton}
+              {helpButton}
+            </div>
           </div>
         </section>
       )}
@@ -213,7 +227,12 @@ export default function HomeScreen({
         </button>
       </section>
 
-      {hasBank && <div className="flex justify-center">{aiButton}</div>}
+      {hasBank && (
+        <div className="flex flex-wrap justify-center gap-2">
+          {aiButton}
+          {helpButton}
+        </div>
+      )}
     </div>
   )
 }

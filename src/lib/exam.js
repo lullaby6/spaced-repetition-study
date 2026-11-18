@@ -2,6 +2,18 @@
 import { normalize, shuffle } from './text.js'
 
 export const CHOICE_OPTIONS = 4
+export const DEFAULT_EXAM_SIZE = 10
+// Preset sizes offered in the setup; 'half' and 'all' depend on how many questions the chosen topics have.
+export const EXAM_SIZES = [5, 10, 20, 'half', 'all']
+
+// How many questions a mock exam of `size` (a number, 'half' or 'all') has, out of `available`.
+export function resolveExamSize(size, available) {
+  if (available <= 0) return 0
+  if (size === 'all') return available
+  if (size === 'half') return Math.max(1, Math.ceil(available / 2))
+  const n = Math.floor(Number(size))
+  return Number.isFinite(n) && n > 0 ? Math.min(n, available) : Math.min(DEFAULT_EXAM_SIZE, available)
+}
 // Hint levels, asked one by one: the question's hints, then its key words, then two wrong options removed.
 export const HINT_LEVELS = ['hints', 'keywords', 'eliminate']
 

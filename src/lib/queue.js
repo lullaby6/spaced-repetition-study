@@ -151,10 +151,42 @@ export function recordResult(session, progress, result, response = null) {
   const nextSession = {
     ...session,
     queue,
+    skipped: (session.skipped ?? []).filter((k) => k !== item.key),
     counter: session.counter + 1,
     log: [...session.log, { key: item.key, stage: item.stage, kind: item.kind, result, response, at: now.toISOString() }],
   }
   return refill(nextSession, { ...progress, [item.key]: p })
+}
+
+// Skips the current exercise: it goes to the end of the queue, with no result and no progress change.
+// Its key is remembered in `skipped` so the user can go back to it. `counter` changes so the screen
+// shows a fresh exercise.
+export function skipCurrent(session) {
+  if (!session || session.queue.length < 2) return session
+  const [item, ...rest] = session.queue
+  const skipped = [...(session.skipped ?? []).filter((k) => k !== item.key), item.key]
+  return { ...session, queue: [...rest, item], skipped, counter: session.counter + 1 }
+}
+
+// The most recently skipped question that is still waiting in the queue, or null.
+export function lastSkipped(session) {
+  const queued = new Set(session?.queue.slice(1).map((i) => i.key))
+  return [...(session?.skipped ?? [])].reverse().find((k) => queued.has(k)) ?? null
+}
+
+// Brings the last skipped exercise back to the front; the current one becomes the next.
+export function backToSkipped(session) {
+  const key = lastSkipped(session)
+  if (!key) return session
+  const index = session.queue.findIndex((i, n) => n > 0 && i.key === key)
+  const queue = [...session.queue]
+  const [item] = queue.splice(index, 1)
+  return {
+    ...session,
+    queue: [item, ...queue],
+    skipped: session.skipped.filter((k) => k !== key),
+    counter: session.counter + 1,
+  }
 }
 
 // Puts one question back to "new". If it was in the current session it starts over there (it goes

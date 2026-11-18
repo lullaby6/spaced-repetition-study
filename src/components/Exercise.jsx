@@ -6,8 +6,10 @@ import RecallStage from './stages/RecallStage.jsx'
 // Runs the exercise for one stage and handles "try again" after a failure.
 // Only the first attempt counts: retries are practice and report that first record.
 // A record is { result, ratio?, response } where `response` is what the user answered.
-// `askHints` turns on the step-by-step hints of the written mock exam (stage 4 only).
-export default function Exercise({ question, stage, outcomeFor, askHints = false, onDone }) {
+// Stage 4 can ask for step-by-step hints. In a study session (`outcomeFor` set) using them keeps the
+// question from being mastered; in the mock exam they are only recorded.
+export default function Exercise({ question, stage, outcomeFor, onDone }) {
+  const askHints = stage === 4
   const [attempt, setAttempt] = useState(0)
   const [first, setFirst] = useState(null)
 
@@ -24,5 +26,5 @@ export default function Exercise({ question, stage, outcomeFor, askHints = false
 
   if (stage === 1) return <CopyStage key={attempt} {...props} />
   if (stage === 2) return <ClozeStage key={attempt} {...props} />
-  return <RecallStage key={attempt} {...props} withHints={stage === 3} askHints={askHints} />
+  return <RecallStage key={attempt} {...props} withHints={stage === 3} askHints={askHints} hintsCapResult={askHints && !!outcomeFor} />
 }

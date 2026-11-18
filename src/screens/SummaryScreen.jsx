@@ -24,6 +24,11 @@ export default function SummaryScreen({ summary, counts, onHome, onNewSession })
         </div>
       </div>
 
+      {summary.exercises === 0 ? (
+        <div role="status" className="alert">
+          <span>{t('summary.noExercises')}</span>
+        </div>
+      ) : (
       <div className="grid gap-4 md:grid-cols-3">
         <SummaryList title={t('summary.masteredList')} empty={t('summary.noneMastered')}>
           {summary.mastered.map((q) => (
@@ -48,6 +53,7 @@ export default function SummaryScreen({ summary, counts, onHome, onNewSession })
           ))}
         </SummaryList>
       </div>
+      )}
 
       <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
         <button type="button" className="btn btn-ghost" onClick={onHome}>

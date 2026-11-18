@@ -1,16 +1,18 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { LANGUAGES, useI18n } from './i18n.jsx'
+import { useI18n } from './i18n.jsx'
 import { assignKeys, isQuestionActive, readBankFile } from './lib/bank.js'
-import { countStatuses, lastStudiedKey, recordResult, removeFromSession, resetQuestion, startSession, summarizeSession } from './lib/queue.js'
+import { countStatuses, lastStudiedKey, recordResult, removeFromSession, resetQuestion, skipCurrent, backToSkipped, startSession, summarizeSession } from './lib/queue.js'
 import { buildBackup, createBank, DEFAULT_SETTINGS, downloadJson, downloadText, isValidBackup, libraryFromBackup, loadState, saveState } from './lib/storage.js'
 import { parseCloze, serializeBank } from './lib/parser.js'
 import EditorScreen from './screens/EditorScreen.jsx'
+import HelpScreen from './screens/HelpScreen.jsx'
 import { shuffle } from './lib/text.js'
-import { buildChoice } from './lib/exam.js'
+import { buildChoice, DEFAULT_EXAM_SIZE, resolveExamSize } from './lib/exam.js'
 import ConfirmModal from './components/ConfirmModal.jsx'
 import AiPromptModal from './components/AiPromptModal.jsx'
 import RenameModal from './components/RenameModal.jsx'
 import Tooltip from './components/Tooltip.jsx'
+import LanguageMenu from './components/LanguageMenu.jsx'
 import HomeScreen from './screens/HomeScreen.jsx'
 import SetupScreen from './screens/SetupScreen.jsx'
 import StudyScreen from './screens/StudyScreen.jsx'
@@ -19,7 +21,6 @@ import ProgressScreen from './screens/ProgressScreen.jsx'
 import DataScreen from './screens/DataScreen.jsx'
 import ExamScreen, { ExamSummaryScreen } from './screens/ExamScreen.jsx'
 
-const EXAM_SIZE = 10
 const NO_QUESTIONS = []
 const NO_PROGRESS = {}
 const NO_TOPICS = []
@@ -27,7 +28,7 @@ const NO_TOPICS = []
 const TOAST_CLASSES = { success: 'alert-success', error: 'alert-error', info: 'alert-info' }
 
 export default function App() {
-  const { t, lang, setLang } = useI18n()
+  const { t } = useI18n()
   const [library, setLibrary] = useState(loadState)
   const [view, setView] = useState('home')
   const [setupPurpose, setSetupPurpose] = useState('study')
@@ -73,6 +74,11 @@ export default function App() {
   const bankByKey = useMemo(() => new Map(bank.map((q) => [q.key, q])), [bank])
   const topics = useMemo(() => [...new Set(bank.map((q) => q.topic))], [bank])
   const studyTopics = useMemo(() => [...new Set(activeQuestions.map((q) => q.topic))], [activeQuestions])
+  const topicCounts = useMemo(() => {
+    const map = new Map()
+    for (const q of activeQuestions) map.set(q.topic, (map.get(q.topic) || 0) + 1)
+    return map
+  }, [activeQuestions])
   const counts = useMemo(() => countStatuses(activeQuestions, progress), [activeQuestions, progress])
   const dueReviews = useMemo(() => {
     const now = new Date()
@@ -187,7 +193,8 @@ export default function App() {
     const order = examSettings.examOrder || 'random'
     const pool = activeQuestions.filter((q) => !examSettings.topics || examSettings.topics.includes(q.topic))
     // The questions are always a random pick; 'bank' only shows them in the bank's numbering.
-    let keys = shuffle(pool.map((q) => q.key)).slice(0, EXAM_SIZE)
+    const size = examSettings.examSize ?? DEFAULT_EXAM_SIZE
+    let keys = shuffle(pool.map((q) => q.key)).slice(0, resolveExamSize(size, pool.length))
     if (order === 'bank') {
       const position = new Map(bank.map((q, i) => [q.key, i]))
       keys = keys.sort((a, b) => position.get(a) - position.get(b))
@@ -196,16 +203,41 @@ export default function App() {
     // Multiple choice: wrong options come from every active question of the bank, not only the chosen topics.
     if (mode === 'choice' && activeQuestions.length < 2) return notify('info', t('toast.choiceNeedsMore'))
     const options = mode === 'choice' ? Object.fromEntries(keys.map((k) => [k, buildChoice(bankByKey.get(k), activeQuestions)])) : null
-    updateActive((b) => ({ settings: { ...b.settings, examMode: mode, examOrder: order } }))
-    setExam({ keys, index: 0, results: [], topics: examSettings.topics, mode, order, options })
+    updateActive((b) => ({ settings: { ...b.settings, examMode: mode, examOrder: order, examSize: size } }))
+    setExam({ keys, index: 0, results: [], topics: examSettings.topics, mode, order, size, options })
     setView('exam')
   }
 
   const answerExam = ({ result, ratio, response }) => {
-    const results = [...exam.results, { key: exam.keys[exam.index], result, ratio, response }]
+    const key = exam.keys[exam.index]
+    const results = [...exam.results, { key, result, ratio, response }]
     const done = exam.index + 1 >= exam.keys.length
-    setExam({ ...exam, results, index: done ? exam.index : exam.index + 1 })
+    const skipped = (exam.skipped ?? []).filter((k) => k !== key)
+    setExam({ ...exam, results, skipped, index: done ? exam.index : exam.index + 1 })
     if (done) setView('examSummary')
+  }
+
+  // Skipping moves the question to the end of the exam (and remembers it so you can go back to it);
+  // the last one left is recorded as skipped.
+  const skipExam = () => {
+    if (exam.index >= exam.keys.length - 1) return answerExam({ result: 'skipped', ratio: 0, response: null })
+    const keys = [...exam.keys]
+    const [key] = keys.splice(exam.index, 1)
+    const skipped = [...(exam.skipped ?? []).filter((k) => k !== key), key]
+    setExam({ ...exam, keys: [...keys, key], skipped })
+  }
+
+  // The most recently skipped question still pending (after the current one), or null.
+  const examSkippedKey = exam
+    ? [...(exam.skipped ?? [])].reverse().find((k) => exam.keys.indexOf(k) > exam.index) ?? null
+    : null
+
+  // Brings that question back to the current position; the current one becomes the next.
+  const backToSkippedExam = () => {
+    if (!examSkippedKey) return
+    const keys = exam.keys.filter((k) => k !== examSkippedKey)
+    keys.splice(exam.index, 0, examSkippedKey)
+    setExam({ ...exam, keys, skipped: exam.skipped.filter((k) => k !== examSkippedKey) })
   }
 
   // ---- Banks ----
@@ -303,8 +335,18 @@ export default function App() {
     { id: 'home', label: t('nav.home') },
     { id: 'progress', label: t('nav.progress') },
     { id: 'data', label: t('nav.data') },
+    {
+      id: 'help',
+      label: t('nav.help'),
+      icon: (
+        <svg viewBox="0 0 24 24" className="size-5" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+          <circle cx="12" cy="12" r="9" />
+          <path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.6v.6M12 17v.5" strokeLinecap="round" />
+        </svg>
+      ),
+    },
   ]
-  const activeNav = ['progress', 'data'].includes(view) ? view : 'home'
+  const activeNav = ['progress', 'data', 'help'].includes(view) ? view : 'home'
 
   return (
     <div className="min-h-dvh bg-base-200/50">
@@ -318,30 +360,23 @@ export default function App() {
             </span>
             <span className="hidden sm:inline">{t('app.title')}</span>
           </button>
-          <nav className="flex gap-1" aria-label={t('nav.label')}>
+          <nav className="flex items-center gap-1" aria-label={t('nav.label')}>
             {navItems.map((item) => (
               <button
                 key={item.id}
                 type="button"
-                className={`btn btn-sm ${activeNav === item.id ? 'btn-active' : 'btn-ghost'}`}
+                className={`btn btn-sm gap-1.5 ${activeNav === item.id ? 'btn-active' : 'btn-ghost'}`}
                 onClick={() => setView(item.id)}
+                aria-label={item.icon ? item.label : undefined}
+                title={item.icon ? item.label : undefined}
               >
-                {item.label}
+                {item.icon}
+                {/* Items with an icon show only the icon on phones. */}
+                <span className={item.icon ? 'hidden sm:inline' : ''}>{item.label}</span>
               </button>
             ))}
           </nav>
-          <select
-            className="select select-sm w-auto"
-            value={lang}
-            onChange={(e) => setLang(e.target.value)}
-            aria-label={t('app.language')}
-          >
-            {Object.keys(LANGUAGES).map((code) => (
-              <option key={code} value={code}>
-                {LANGUAGES[code].languageName}
-              </option>
-            ))}
-          </select>
+          <LanguageMenu />
         </div>
       </header>
 
@@ -373,12 +408,14 @@ export default function App() {
             }}
             onStartOver={() => setModal({ kind: 'reset' })}
             onShowAiPrompt={() => setModal({ kind: 'aiPrompt' })}
+            onShowHelp={() => setView('help')}
           />
         )}
         {view === 'setup' && (
           <SetupScreen
             purpose={setupPurpose}
             topics={studyTopics}
+            topicCounts={topicCounts}
             settings={settings}
             hasSession={hasSession}
             onCancel={() => setView('home')}
@@ -392,6 +429,8 @@ export default function App() {
             bankByKey={bankByKey}
             counts={counts}
             onResult={handleResult}
+            onSkip={() => updateActive((b) => ({ session: skipCurrent(b.session) }))}
+            onBackToSkipped={() => updateActive((b) => ({ session: backToSkipped(b.session) }))}
             onFinish={() => finishSession(session)}
           />
         )}
@@ -424,6 +463,9 @@ export default function App() {
             onResetAll={() => setModal({ kind: 'reset' })}
           />
         )}
+        {view === 'help' && (
+          <HelpScreen onShowAiPrompt={() => setModal({ kind: 'aiPrompt' })} onStart={() => setView('home')} />
+        )}
         {view === 'editor' && active && (
           <EditorScreen
             key={library.activeId}
@@ -448,14 +490,22 @@ export default function App() {
           />
         )}
         {view === 'exam' && exam && (
-          <ExamScreen exam={exam} bankByKey={bankByKey} onAnswer={answerExam} onQuit={() => setView('home')} />
+          <ExamScreen
+            exam={exam}
+            bankByKey={bankByKey}
+            skippedKey={examSkippedKey}
+            onAnswer={answerExam}
+            onSkip={skipExam}
+            onBackToSkipped={backToSkippedExam}
+            onQuit={() => setView('home')}
+          />
         )}
         {view === 'examSummary' && exam && (
           <ExamSummaryScreen
             exam={exam}
             bankByKey={bankByKey}
             onHome={() => setView('home')}
-            onRetry={() => beginExam({ topics: exam.topics, examMode: exam.mode, examOrder: exam.order })}
+            onRetry={() => beginExam({ topics: exam.topics, examMode: exam.mode, examOrder: exam.order, examSize: exam.size })}
           />
         )}
 

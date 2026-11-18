@@ -1,16 +1,28 @@
 import { useState } from 'react'
 import { useI18n } from '../i18n.jsx'
 import { InfoTip } from '../components/Tooltip.jsx'
+import { DEFAULT_EXAM_SIZE, EXAM_SIZES, resolveExamSize } from '../lib/exam.js'
 
-// Session settings (topics, order, new questions per session). For the mock exam only topics apply.
-export default function SetupScreen({ purpose, topics, settings, hasSession, onStart, onCancel }) {
+// Session settings (topics, order, new questions per session), or mock exam settings
+// (type, order, how many questions, topics). `topicCounts` maps each topic to its active questions.
+export default function SetupScreen({ purpose, topics, topicCounts, settings, hasSession, onStart, onCancel }) {
   const { t } = useI18n()
-  const [selected, setSelected] = useState(() => new Set(settings.topics || topics))
+  const [selected, setSelected] = useState(() => new Set((settings.topics || topics).filter((tp) => topics.includes(tp))))
   const [order, setOrder] = useState(settings.order)
   const [newPerSession, setNewPerSession] = useState(settings.newPerSession)
   const [examMode, setExamMode] = useState(settings.examMode || 'choice') // 'choice' | 'write'
   const [examOrder, setExamOrder] = useState(settings.examOrder || 'random') // 'random' | 'bank'
+  // A preset (5, 10, 20, 'half', 'all') or 'custom' with its own number.
+  const savedSize = settings.examSize ?? DEFAULT_EXAM_SIZE
+  const [examSize, setExamSize] = useState(EXAM_SIZES.includes(savedSize) ? savedSize : 'custom')
+  const [customSize, setCustomSize] = useState(EXAM_SIZES.includes(savedSize) ? '' : String(savedSize))
   const isExam = purpose === 'exam'
+
+  const available = topics.filter((tp) => selected.has(tp)).reduce((sum, tp) => sum + (topicCounts?.get(tp) || 0), 0)
+  const sizeValue = examSize === 'custom' ? Number(customSize) || DEFAULT_EXAM_SIZE : examSize
+  const examCount = resolveExamSize(sizeValue, available)
+  const sizeLabel = (size) =>
+    size === 'half' ? t('setup.examSize_half') : size === 'all' ? t('setup.examSize_all') : String(size)
 
   const toggle = (topic) =>
     setSelected((cur) => {
@@ -28,6 +40,7 @@ export default function SetupScreen({ purpose, topics, settings, hasSession, onS
       newPerSession: Math.max(1, Math.min(500, Number(newPerSession) || 15)),
       examMode,
       examOrder,
+      examSize: sizeValue,
     })
   }
 
@@ -97,6 +110,45 @@ export default function SetupScreen({ purpose, topics, settings, hasSession, onS
           </div>
         </fieldset>
 
+        {isExam && (
+          <fieldset className="space-y-2">
+            <legend className="font-semibold">
+              {t('setup.examSize')} <InfoTip text={t('info.examSize')} />
+            </legend>
+            <div className="flex flex-wrap items-center gap-2" role="radiogroup" aria-label={t('setup.examSize')}>
+              {[...EXAM_SIZES, 'custom'].map((size) => (
+                <button
+                  key={size}
+                  type="button"
+                  role="radio"
+                  aria-checked={examSize === size}
+                  className={`btn btn-sm min-w-11 ${examSize === size ? 'btn-primary' : 'btn-outline'} ${
+                    examSize !== size && typeof size === 'number' && size > available ? 'opacity-50' : ''
+                  }`}
+                  onClick={() => setExamSize(size)}
+                >
+                  {size === 'custom' ? t('setup.examSize_custom') : sizeLabel(size)}
+                </button>
+              ))}
+              {examSize === 'custom' && (
+                <input
+                  type="number"
+                  min="1"
+                  max={available || undefined}
+                  inputMode="numeric"
+                  className="input input-bordered input-sm w-24"
+                  value={customSize}
+                  onChange={(e) => setCustomSize(e.target.value)}
+                  placeholder={String(DEFAULT_EXAM_SIZE)}
+                  aria-label={t('setup.examSize_custom')}
+                  autoFocus
+                />
+              )}
+            </div>
+            <p className="text-sm opacity-70">{t('setup.examSizeResult', { count: examCount, available })}</p>
+          </fieldset>
+        )}
+
         {!isExam && (
           <>
             <fieldset className="space-y-2">
@@ -139,7 +191,7 @@ export default function SetupScreen({ purpose, topics, settings, hasSession, onS
           <button type="button" className="btn btn-ghost" onClick={onCancel}>
             {t('common.back')}
           </button>
-          <button type="button" className="btn btn-primary" onClick={start} disabled={selected.size === 0}>
+          <button type="button" className="btn btn-primary" onClick={start} disabled={selected.size === 0 || (isExam && !examCount)}>
             {isExam ? t('setup.startExam') : t('setup.start')}
           </button>
         </div>

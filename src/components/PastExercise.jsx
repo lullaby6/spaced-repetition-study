@@ -3,7 +3,7 @@ import { useI18n } from '../i18n.jsx'
 import { AnswerBox } from './ResultPanel.jsx'
 import { blankStyle } from './stages/ClozeStage.jsx'
 
-const RESULT_STYLES = { passed: 'alert-success', partial: 'alert-warning', failed: 'alert-error' }
+const RESULT_STYLES = { passed: 'alert-success', partial: 'alert-warning', failed: 'alert-error', skipped: '' }
 
 // Read-only view of an exercise already answered: what was typed, the result and the full answer.
 // `entry.stage` is 1-4, or 'choice' for a multiple choice mock exam question (needs `bankByKey`).
@@ -11,7 +11,12 @@ export default function PastExercise({ question, entry, bankByKey }) {
   const { t } = useI18n()
   const response = entry.response
   const isChoice = entry.stage === 'choice'
-  const label = isChoice ? t(entry.result === 'passed' ? 'choice.right' : 'choice.wrong') : t(`result.${entry.result}`)
+  const label =
+    entry.result === 'skipped'
+      ? t('exam.skipped')
+      : isChoice
+        ? t(entry.result === 'passed' ? 'choice.right' : 'choice.wrong')
+        : t(`result.${entry.result}`)
 
   return (
     <div className="space-y-4">
@@ -20,7 +25,9 @@ export default function PastExercise({ question, entry, bankByKey }) {
         {isChoice && response?.hintsUsed > 0 && <span className="text-sm">{t('choice.hintsUsed', { count: response.hintsUsed })}</span>}
       </div>
 
-      {!response && <p className="text-sm italic opacity-60">{t('history.noResponse')}</p>}
+      {!response && (
+        <p className="text-sm italic opacity-60">{entry.result === 'skipped' ? t('exam.skippedNote') : t('history.noResponse')}</p>
+      )}
       {response && isChoice && (
         <ul className="space-y-2">
           {response.options.map((key) => {

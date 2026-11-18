@@ -2,7 +2,7 @@
 import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
 import { clozeToRaw, missingFields, parseBank, parseCloze, serializeBank } from '../src/lib/parser.js'
-import { MAX_LEARNING, recordResult, startSession, countStatuses, resetQuestion, lastStudiedKey, removeFromSession } from '../src/lib/queue.js'
+import { MAX_LEARNING, recordResult, startSession, countStatuses, resetQuestion, lastStudiedKey, removeFromSession, skipCurrent, lastSkipped, backToSkipped } from '../src/lib/queue.js'
 import { isQuestionActive } from '../src/lib/bank.js'
 import { buildChoice, CHOICE_OPTIONS, optionsToEliminate } from '../src/lib/exam.js'
 import { compareCopy, guessLanguage, isBlankCorrect, keywordRanges, suggestKeyPoints } from '../src/lib/text.js'
@@ -84,6 +84,32 @@ assert.equal(r.progress[review.session.queue[0].key].status, 'review')
 const passedReview = recordResult(review.session, review.progress, 'passed')
 const next = new Date(passedReview.progress[review.session.queue[0].key].nextReview)
 assert.ok(next - Date.now() > 2.9 * 24 * 3600 * 1000, 'next review in 3 days')
+
+// Skipping: the exercise goes to the end, nothing is recorded.
+{
+  const { session: s, progress: p } = startSession(bank, {}, settings)
+  const skipped = skipCurrent(s)
+  assert.deepEqual(skipped.queue.at(-1), s.queue[0])
+  assert.equal(skipped.queue.length, s.queue.length)
+  assert.equal(skipped.log.length, 0)
+  assert.notEqual(skipped.counter, s.counter)
+  assert.equal(skipCurrent({ ...s, queue: [s.queue[0]] }).queue.length, 1, 'nothing to skip to')
+  assert.equal(p['1'].attempts, 0)
+
+  // Going back: skip 1 and 2, then return to 2, then to 1; the current one becomes the next.
+  const twice = skipCurrent(skipCurrent(s)) // current is now 3
+  assert.equal(lastSkipped(twice), '2')
+  const back = backToSkipped(twice)
+  assert.deepEqual(back.queue.slice(0, 2).map((i) => i.key), ['2', '3'])
+  assert.equal(lastSkipped(back), '1')
+  const backAgain = backToSkipped(back)
+  assert.deepEqual(backAgain.queue.slice(0, 3).map((i) => i.key), ['1', '2', '3'])
+  assert.equal(lastSkipped(backAgain), null)
+  assert.equal(backToSkipped(backAgain), backAgain, 'nothing to go back to')
+  // Answering a skipped one forgets it.
+  const answered = recordResult(back, p, 'passed')
+  assert.ok(!answered.session.skipped.includes('2'))
+}
 
 // Questions waiting in the queue stay "new" until they are first answered.
 {
