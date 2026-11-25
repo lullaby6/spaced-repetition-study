@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { Link, useLocation, useNavigate } from 'react-router'
 import { useI18n } from './i18n.jsx'
 import { assignKeys, isQuestionActive, readBankFile } from './lib/bank.js'
 import { countStatuses, lastStudiedKey, recordResult, removeFromSession, resetQuestion, skipCurrent, backToSkipped, jumpTo, excludeFromSession, includeInSession, startSession, summarizeSession } from './lib/queue.js'
@@ -29,6 +30,20 @@ import ExamScreen, { ExamSummaryScreen } from './screens/ExamScreen.jsx'
 const NO_QUESTIONS = []
 const NO_PROGRESS = {}
 const NO_TOPICS = []
+// Screens that have their own URL (relative to the site's base path).
+const ROUTES = {
+  home: '/',
+  progress: '/progress',
+  data: '/data',
+  help: '/help',
+  listen: '/listen',
+  browse: '/browse',
+  editor: '/editor',
+}
+const PATH_TO_VIEW = Object.fromEntries(Object.entries(ROUTES).map(([view, path]) => [path, view]))
+// Unknown paths show the home screen.
+const viewForPath = (pathname) => PATH_TO_VIEW[pathname.replace(/\/+$/, '') || '/'] ?? 'home'
+
 // Full class names so Tailwind can find them when scanning the source.
 const TOAST_CLASSES = { success: 'alert-success', error: 'alert-error', info: 'alert-info' }
 
@@ -37,7 +52,26 @@ export default function App() {
   const [library, setLibrary] = useState(loadState)
   const libraryRef = useRef(library)
   libraryRef.current = library
-  const [view, setView] = useState('home')
+  // Screens with their own URL come from the router; flows started from home (setup, study session,
+  // summary, mock exam) have no URL and live in `flowView`, shown on top of "/".
+  const location = useLocation()
+  const navigate = useNavigate()
+  const [flowView, setFlowView] = useState(null)
+  const routeView = viewForPath(location.pathname)
+  const view = routeView === 'home' && flowView ? flowView : routeView
+  // Same API as before: go to any screen by name. Routed screens update the URL (no reload).
+  const setView = useCallback(
+    (next) => {
+      if (ROUTES[next] !== undefined) {
+        setFlowView(null)
+        if (location.pathname !== ROUTES[next]) navigate(ROUTES[next])
+      } else {
+        setFlowView(next)
+        if (location.pathname !== '/') navigate('/')
+      }
+    },
+    [location.pathname, navigate],
+  )
   const [setupPurpose, setSetupPurpose] = useState('study')
   const [summary, setSummary] = useState(null)
   const [exam, setExam] = useState(null)
@@ -490,6 +524,12 @@ export default function App() {
     setModal(null)
   }
 
+  // Screens that need a bank (opened by URL with none loaded) send you to the home screen.
+  const needsBank = routeView === 'listen' || routeView === 'browse' || routeView === 'editor'
+  useEffect(() => {
+    if (needsBank && !active) navigate(ROUTES.home, { replace: true })
+  }, [needsBank, active, navigate])
+
   const hasSession = !!session?.queue?.length
   const shortcutsKey =
     view === 'study' && hasSession
@@ -521,28 +561,30 @@ export default function App() {
     <div className="min-h-dvh bg-base-200/50">
       <header className="navbar sticky top-0 z-20 border-b border-base-300 bg-base-100/95 px-2 backdrop-blur sm:px-4">
         <div className="mx-auto flex w-full max-w-4xl flex-wrap items-center gap-2">
-          <button type="button" className="mr-auto flex items-center gap-2 text-lg font-bold" onClick={() => setView('home')}>
+          {/* Links change the URL without reloading the page; going "home" also leaves any open flow. */}
+          <Link to={ROUTES.home} className="mr-auto flex items-center gap-2 text-lg font-bold" onClick={() => setFlowView(null)}>
             <span className="grid size-8 place-items-center rounded-field bg-primary text-primary-content">
               <svg viewBox="0 0 24 24" className="size-5" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
                 <path d="M4 19.5V5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2Zm0 0A2 2 0 0 0 6 22h13" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
             </span>
             <span className="hidden sm:inline">{t('app.title')}</span>
-          </button>
+          </Link>
           <nav className="flex items-center gap-1" aria-label={t('nav.label')}>
             {navItems.map((item) => (
-              <button
+              <Link
                 key={item.id}
-                type="button"
+                to={ROUTES[item.id]}
                 className={`btn btn-sm gap-1.5 ${activeNav === item.id ? 'btn-active' : 'btn-ghost'}`}
-                onClick={() => setView(item.id)}
+                aria-current={activeNav === item.id ? 'page' : undefined}
+                onClick={() => setFlowView(null)}
                 aria-label={item.icon ? item.label : undefined}
                 title={item.icon ? item.label : undefined}
               >
                 {item.icon}
                 {/* Items with an icon show only the icon on phones. */}
                 <span className={item.icon ? 'hidden sm:inline' : ''}>{item.label}</span>
-              </button>
+              </Link>
             ))}
           </nav>
           <LanguageMenu />

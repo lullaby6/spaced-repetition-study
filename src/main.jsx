@@ -1,5 +1,6 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
+import { BrowserRouter } from 'react-router'
 import { I18nProvider } from './i18n.jsx'
 import App from './App.jsx'
 import './index.css'
@@ -12,10 +13,15 @@ document.addEventListener('focusin', (e) => {
   setTimeout(() => el.scrollIntoView({ block: 'center', behavior: 'smooth' }), 300)
 })
 
+// Routes live under the site's base path (e.g. /spaced-repetition-study/ on GitHub Pages).
+const basename = import.meta.env.BASE_URL.replace(/\/$/, '') || '/'
+
 createRoot(document.getElementById('root')).render(
   <StrictMode>
-    <I18nProvider>
-      <App />
-    </I18nProvider>
+    <BrowserRouter basename={basename}>
+      <I18nProvider>
+        <App />
+      </I18nProvider>
+    </BrowserRouter>
   </StrictMode>,
 )

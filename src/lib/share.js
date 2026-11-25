@@ -51,7 +51,8 @@ export async function decodeShare(text) {
 }
 
 export async function buildShareLink(library) {
-  const base = `${location.origin}${location.pathname}`
+  // Always the site's home (not the current tab, e.g. /data), under its base path.
+  const base = `${location.origin}${import.meta.env.BASE_URL}`
   return `${base}#${SHARE_PARAM}=${await encodeShare(buildShareData(library))}`
 }
 
