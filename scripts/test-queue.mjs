@@ -4,6 +4,7 @@ import { readFile } from 'node:fs/promises'
 import { clozeToRaw, missingFields, parseBank, parseCloze, serializeBank } from '../src/lib/parser.js'
 import { MAX_LEARNING, describeOutcome, recordResult, startSession, countStatuses, resetQuestion, lastStudiedKey, removeFromSession, skipCurrent, lastSkipped, backToSkipped, jumpTo, excludeFromSession, includeInSession } from '../src/lib/queue.js'
 import { isQuestionActive } from '../src/lib/bank.js'
+import { normalizeLibrary } from '../src/lib/storage.js'
 import { buildChoice, CHOICE_OPTIONS, optionsToEliminate } from '../src/lib/exam.js'
 import { buildShareData, decodeShare, encodeShare } from '../src/lib/share.js'
 import { makeTrashId, removeFromTrash, restoreFromTrash, trashAllBanks, trashBank, trashProgress, trashQuestion } from '../src/lib/trash.js'
@@ -68,7 +69,7 @@ while (session.queue.length && steps < 1000) {
 assert.ok(Math.max(...learningMax) <= MAX_LEARNING, 'never more than 6 learning')
 const counts = countStatuses(bank, progress)
 assert.equal(counts.mastered, 15, '15 new per session, all mastered')
-assert.equal(steps + 1, 15 * 4, 'each question took exactly 4 exercises')
+assert.equal(steps + 1, 15 * 3, 'each question took exactly 3 exercises (stages 1, 2, 3)')
 
 // A failed stage 2 sends it back to stage 1, two positions later.
 ;({ session, progress } = startSession(bank, progress, settings))
@@ -78,36 +79,60 @@ while (session.queue[0].key !== firstKey) ({ session, progress } = recordResult(
 ;({ session, progress } = recordResult(session, progress, 'failed')) // stage 2 failed
 assert.deepEqual(session.queue[2], { key: firstKey, stage: 1, kind: 'learn' })
 
-// Review mode: mastered questions come in stage 4; failing sends them to stage 3 as "review".
+// Review mode: mastered questions come in the last stage (3); failing sends them back to stage 2 as "review".
 const review = startSession(bank, progress, settings, 'review')
-assert.ok(review.session.queue.every((i) => i.stage === 4 && i.kind === 'review'))
+assert.ok(review.session.queue.every((i) => i.stage === 3 && i.kind === 'review'))
 const r = recordResult(review.session, review.progress, 'failed')
 assert.equal(r.progress[review.session.queue[0].key].status, 'review')
+assert.equal(r.progress[review.session.queue[0].key].stage, 2)
 const passedReview = recordResult(review.session, review.progress, 'passed')
 const next = new Date(passedReview.progress[review.session.queue[0].key].nextReview)
 assert.ok(next - Date.now() > 2.9 * 24 * 3600 * 1000, 'next review in 3 days')
 
-// Choosing stages: without stage 4, passing stage 3 masters the question; reviews happen at stage 3.
+// Choosing stages: with only 1 and 2, passing stage 2 masters the question; reviews happen at stage 2.
 {
-  const three = { ...settings, stages: [1, 2, 3] }
-  let { session: s, progress: p } = startSession(bank, {}, three)
+  const two = { ...settings, stages: [1, 2] }
+  let { session: s, progress: p } = startSession(bank, {}, two)
   const key = s.queue[0].key
   for (let guard = 0; p[key]?.status !== 'mastered' && guard < 50; guard++) {
     while (s.queue[0].key !== key) ({ session: s, progress: p } = recordResult(s, p, 'passed'))
-    assert.ok(s.queue[0].stage <= 3, 'never stage 4')
+    assert.ok(s.queue[0].stage <= 2, 'never stage 3')
     ;({ session: s, progress: p } = recordResult(s, p, 'passed'))
   }
   assert.equal(p[key].status, 'mastered')
-  assert.equal(s.log.filter((l) => l.key === key).length, 3, 'three exercises: stages 1, 2, 3')
-  const review = startSession(bank, p, three, 'review')
-  assert.ok(review.session.queue.every((i) => i.stage === 3))
-  assert.deepEqual(describeOutcome({ key, stage: 3, kind: 'learn' }, 'passed', s), { code: 'outcome.mastered' })
+  assert.equal(s.log.filter((l) => l.key === key).length, 2, 'two exercises: stages 1, 2')
+  const review = startSession(bank, p, two, 'review')
+  assert.ok(review.session.queue.every((i) => i.stage === 2))
+  assert.deepEqual(describeOutcome({ key, stage: 2, kind: 'learn' }, 'passed', s), { code: 'outcome.mastered' })
 
-  // Starting at stage 2 (stage 1 off): new questions come in at stage 2.
+  // Starting at stage 2 (stage 1 off): new questions come in at stage 2; a stage 4 in old data is ignored.
   const fromTwo = startSession(bank, {}, { ...settings, stages: [2, 3, 4] })
   assert.ok(fromTwo.session.queue.every((i) => i.stage === 2))
+  assert.deepEqual(fromTwo.session.options.stages, [2, 3])
   // A failure at the first enabled stage stays there.
   assert.deepEqual(describeOutcome({ key: '1', stage: 2, kind: 'learn' }, 'failed', fromTwo.session).params.stage, 2)
+  // Questions saved at the old stage 4 continue at stage 3.
+  const old = startSession(bank, { 1: { key: '1', stage: 4, status: 'learning', attempts: 3, correct: 3 } }, settings)
+  assert.deepEqual(old.session.queue.find((i) => i.key === '1'), { key: '1', stage: 3, kind: 'learn' })
+}
+
+// Saved data from when stage 4 existed is moved to stage 3 on load.
+{
+  const lib = normalizeLibrary({
+    banks: [
+      {
+        id: 'A',
+        progress: { 1: { key: '1', stage: 4, status: 'learning', attempts: 2 } },
+        settings: { stages: [1, 2, 3, 4] },
+        session: { queue: [{ key: '1', stage: 4, kind: 'learn' }], options: { stages: [3, 4] } },
+      },
+    ],
+  })
+  const b = lib.banks[0]
+  assert.equal(b.progress['1'].stage, 3)
+  assert.deepEqual(b.settings.stages, [1, 2, 3])
+  assert.deepEqual(b.session.queue[0], { key: '1', stage: 3, kind: 'learn' })
+  assert.deepEqual(b.session.options.stages, [3])
 }
 
 // How many questions are learned at once is configurable.
@@ -126,7 +151,7 @@ assert.ok(next - Date.now() > 2.9 * 24 * 3600 * 1000, 'next review in 3 days')
   const keep = { ...settings, noBacktrack: true }
   const { session: s } = startSession(bank, {}, keep)
   assert.equal(describeOutcome({ key: '1', stage: 3, kind: 'learn' }, 'failed', s).params.stage, 3)
-  assert.equal(describeOutcome({ key: '1', stage: 3, kind: 'learn' }, 'failed', { options: { stages: [1, 2, 3, 4] } }).params.stage, 2, 'default goes back')
+  assert.equal(describeOutcome({ key: '1', stage: 3, kind: 'learn' }, 'failed', { options: { stages: [1, 2, 3] } }).params.stage, 2, 'default goes back')
 }
 
 // Skipping: the exercise leaves the session (does not come back by itself), nothing is recorded.

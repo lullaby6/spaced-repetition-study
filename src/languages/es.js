@@ -11,10 +11,14 @@ export default {
   nav: { label: 'Secciones', home: 'Inicio', progress: 'Progreso', data: 'Datos', help: 'Ayuda' },
   common: { cancel: 'Cancelar', close: 'Cerrar', back: 'Volver', confirm: 'Confirmar', save: 'Guardar' },
   stage: {
-    names: { 1: 'Copiar', 2: 'Completar', 3: 'Con pistas', 4: 'Sin ayuda' },
+    names: { 1: 'Copiar', 2: 'Completar', 3: 'Con pistas' },
     label: 'Etapa {n} de {total} · {name}',
   },
   result: { passed: 'Aprobada', partial: 'Más o menos', failed: 'No la sabía', skipped: 'Salteada' },
+  github: {
+    label: 'Ver en GitHub',
+    help: 'El código de la web es abierto: lo podés ver, reportar problemas o proponer mejoras en GitHub.',
+  },
   sessionSettings: {
     title: 'Configuración de la sesión',
     saved: 'Los cambios se aplican al instante (desde el próximo ejercicio) y quedan guardados para este banco.',
@@ -252,7 +256,7 @@ export default {
     examMode_choice: 'Opción múltiple',
     examModeHelp_choice: 'Elegí la respuesta correcta entre varias. Podés pedir pistas: primero las pistas, después las palabras clave y por último descartar opciones.',
     examMode_write: 'Escribir sin ayuda',
-    examModeHelp_write: 'Como la etapa 4: escribís lo que recordás y después marcás los puntos clave que incluiste. Si te trabás, podés pedir pistas.',
+    examModeHelp_write: 'Escribís lo que recordás, sin ver la respuesta antes, y después marcás los puntos clave que incluiste. Si te trabás, podés pedir pistas.',
     topics: 'Temas',
     all: 'Todos',
     none: 'Ninguno',
@@ -262,11 +266,13 @@ export default {
     newPerSession: 'Preguntas nuevas por sesión',
     maxLearning: 'Preguntas a la vez',
     stages: 'Etapas',
-    stage4Note: '(la más difícil)',
     stagesNone: 'Elegí al menos una etapa.',
+    readFirst: 'Mostrar la respuesta hasta que estés listo',
+    readFirstHelp:
+      'La etapa 3 empieza mostrándote la respuesta; cuando apretás "Estoy listo" se oculta y la escribís. Desactivado: la escribís directamente, sin verla.',
     autoRead: 'Leer en voz alta cada pregunta',
     autoReadHelp:
-      'Cada vez que aparece un ejercicio, la voz lee la pregunta (y la respuesta en Copiar y Sin ayuda). La velocidad también se usa en el botón "Escuchar".',
+      'Cada vez que aparece un ejercicio, la voz lee la pregunta (y la respuesta en Copiar y Con pistas). La velocidad también se usa en el botón "Escuchar".',
     noBacktrack: 'No retroceder al fallar',
     noBacktrackHelp: 'Si te va mal, repetís la misma etapa más adelante en vez de volver a la anterior.',
     replacesSession: 'Empezar una sesión nueva reemplaza la sesión en curso (el progreso de cada pregunta se mantiene).',
@@ -436,20 +442,19 @@ export default {
   help: {
     title: '¿De qué se trata?',
     intro:
-      'Es una web para memorizar las respuestas de un examen. En vez de releer, practicás recordarlas: cada pregunta pasa por cuatro ejercicios, de más fácil a más difícil, y vuelve a aparecer en el momento justo según cómo te fue (repetición espaciada). Todo queda guardado en tu navegador.',
+      'Es una web para memorizar las respuestas de un examen. En vez de releer, practicás recordarlas: cada pregunta pasa por tres ejercicios, de más fácil a más difícil, y vuelve a aparecer en el momento justo según cómo te fue (repetición espaciada). Todo queda guardado en tu navegador.',
     startTitle: 'Cómo empezar',
     start1: 'Armá tu banco de preguntas. Si no lo tenés, pedíselo a una IA a partir de tu PDF, libro o apuntes con el',
     start2: 'Guardalo como archivo .md (también sirve .txt o .pdf) y subilo en el inicio. Podés tener varios bancos, por ejemplo uno por materia.',
     start3: 'Apretá "Empezar", elegí los temas y cuántas preguntas nuevas querés por sesión.',
     start4: 'Respondé cada ejercicio. Cuando una pregunta pasa la última etapa queda dominada; después se repasa cada tanto para que no se olvide.',
     goHome: 'Ir al inicio',
-    stagesTitle: 'Las cuatro etapas',
+    stagesTitle: 'Las tres etapas',
     stagesIntro:
-      'Cada pregunta avanza por estas etapas. Si te va bien, sube; si te va más o menos, la repetís; si te va mal, baja (salvo que actives "No retroceder al fallar"). Al configurar la sesión elegís qué etapas hacer; la 4 viene desactivada.',
+      'Cada pregunta avanza por estas etapas. Si te va bien, sube; si te va más o menos, la repetís; si te va mal, baja (salvo que actives "No retroceder al fallar"). Al aprobar la última, la pregunta queda dominada. Al configurar la sesión podés elegir qué etapas hacer.',
     stage1: 'leés la respuesta y la escribís una vez. Podés escucharla en voz alta u ocultarla para escribirla de memoria.',
     stage2: 'completás las palabras clave que faltan en un resumen. Si te trabás, pedí una pista: primero la primera letra, después la palabra.',
-    stage3: 'escribís la respuesta con tus palabras, con algunas pistas a la vista, y después marcás qué puntos clave incluiste.',
-    stage4: 'primero leés la respuesta completa; cuando estás listo se oculta y la escribís de memoria, sin ayuda a la vista. Si te trabás podés pedir hasta 4 pistas, pero si usás alguna la pregunta vuelve a la etapa 4 en vez de quedar dominada. Viene desactivada: la activás al configurar la sesión.',
+    stage3: 'primero leés la respuesta completa (lo podés desactivar al configurar la sesión); cuando estás listo se oculta y la escribís de memoria con tus palabras, con algunas pistas a la vista. Después marcás qué puntos clave incluiste.',
     queue:
       'Hay pocas preguntas aprendiéndose a la vez (4 por defecto, lo cambiás al configurar la sesión): van y vuelven intercaladas y, cuando una se domina, entra la siguiente. Con "Atrás" podés mirar los ejercicios que ya hiciste.',
     examTitle: 'Simulacro de examen',
@@ -481,7 +486,6 @@ export default {
     keywords: 'Palabras clave',
     starts: 'Cómo empieza cada punto',
     startsTitle: 'Cómo empiezan los puntos clave:',
-    capped: 'Usaste pistas: vuelve a la etapa 4 para que la hagas sin ayuda',
     summary: 'Resumen a medio tapar',
     summaryTitle: 'Resumen de la respuesta (las palabras clave, solo con su primera letra):',
   },
@@ -512,21 +516,21 @@ export default {
     maxLearning:
       'Cuántas preguntas se aprenden al mismo tiempo. Van y vuelven intercaladas hasta dominarse, y recién ahí entra otra nueva. Menos preguntas a la vez = se repiten más seguido y cuesta menos retenerlas; más = más variedad.',
     stage:
-      'Cada pregunta pasa por 4 etapas: 1 Copiar la respuesta, 2 Completar huecos, 3 Recordarla con pistas y 4 Recordarla sin ayuda. Si te va bien avanza a la siguiente, si te va más o menos repetís la misma y si te va mal vuelve a la anterior.',
+      'Cada pregunta pasa por 3 etapas: 1 Copiar la respuesta, 2 Completar huecos y 3 Leerla y después escribirla de memoria, con pistas. Si te va bien avanza a la siguiente, si te va más o menos repetís la misma y si te va mal vuelve a la anterior.',
     status:
-      'Nueva: todavía no la estudiaste. Aprendiendo: está pasando por las 4 etapas. Para repasar: la habías dominado pero fallaste un repaso. Dominada: pasaste la última etapa (la 4, o la que tengas como última); se repasa al día siguiente y después cada 3 días.',
+      'Nueva: todavía no la estudiaste. Aprendiendo: está pasando por las etapas. Para repasar: la habías dominado pero fallaste un repaso. Dominada: pasaste la última etapa; se repasa al día siguiente y después cada 3 días.',
     correct: 'Ejercicios aprobados sobre ejercicios hechos con esa pregunta.',
     resetLast: '"Reiniciar la última" deja como nueva la pregunta que estudiaste más recientemente. Apretalo varias veces para ir deshaciendo tu progreso de a una pregunta.',
     queue:
       'Ejercicios hechos: los que ya respondiste en esta sesión. En cola: los que faltan. Cada pregunta vuelve varias veces, una por etapa, intercalada con las demás.',
     hardest: 'Las preguntas en las que más fallaste en esta sesión: un fallo pesa el doble que un "más o menos".',
     weakTopics: 'Los temas con mayor porcentaje de ejercicios no aprobados en esta sesión.',
-    review: 'Repasa en la etapa 4 (sin ayuda) las preguntas que ya dominás. El número indica cuántas tienen el repaso pendiente.',
+    review: 'Repasa en la última etapa las preguntas que ya dominás. El número indica cuántas tienen el repaso pendiente.',
     exam: 'Preguntas al azar, como en un examen: de opción múltiple o para escribir sin ayuda. Elegís cuántas. No cambia tu progreso.',
     stages:
-      'Qué ejercicios hace cada pregunta. Las etapas desactivadas se saltean: una pregunta queda dominada al aprobar la última etapa activa. La etapa 4 (sin ayuda) viene desactivada; activala si querés el desafío completo.',
+      'Qué ejercicios hace cada pregunta. Las etapas desactivadas se saltean: una pregunta queda dominada al aprobar la última etapa activa.',
     autoRead:
-      'Cada ejercicio que aparece se lee en voz alta, aunque sea la misma pregunta en otra etapa. Se lee el enunciado y, en las etapas que muestran la respuesta completa (1 Copiar y 4 Sin ayuda, mientras la estás leyendo), también la respuesta. En Completar y Con pistas solo se lee la pregunta, para no darte la respuesta.',
+      'Cada ejercicio que aparece se lee en voz alta, aunque sea la misma pregunta en otra etapa. Se lee el enunciado y, en las etapas que muestran la respuesta completa (1 Copiar y 3 Con pistas, mientras la estás leyendo), también la respuesta. En Completar solo se lee la pregunta, para no darte la respuesta.',
     noBacktrack:
       'Normalmente, si te va mal en una etapa, la pregunta vuelve a la etapa anterior. Con esta opción se queda en la misma etapa y la repetís más adelante, así avanzás aunque falles.',
     examOrder:

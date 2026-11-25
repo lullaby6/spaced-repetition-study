@@ -40,16 +40,14 @@ function keyPointStart(point) {
   return words.length > START_WORDS ? `${words.slice(0, START_WORDS).join(' ')}…` : `${words[0]}…`
 }
 
-// Stages 3 (with hints) and 4 (no help): write the key points, then self-assess with a checklist.
-// Also used by the mock exam, where `outcomeFor` is null and progress is not affected.
+// Write the key points from memory, then self-assess with a checklist.
+// Stage 3 of a session: `readFirst` (the answer is shown until "I'm ready") and `withHints` (hints in view).
+// Written mock exam: nothing shown first, `outcomeFor` is null (progress is not affected) and
 // `askHints` lets the user reveal help step by step (WRITE_HINT_LEVELS), recorded as hintsUsed.
-// With `hintsCapResult` (stage 4 of a study session) using any hint turns a pass into "partial",
-// so a question is only mastered when recalled with no help.
 export default function RecallStage({
   question,
   withHints,
   askHints = false,
-  hintsCapResult = false,
   readFirst = false,
   outcomeFor,
   practice,
@@ -86,8 +84,7 @@ export default function RecallStage({
   const total = question.keyPoints.length
   const count = ticked.filter(Boolean).length
   const ratio = phase === 'gaveUp' ? 0 : count / total
-  const capped = hintsCapResult && hintLevel > 0 && recallResult(ratio) === 'passed'
-  const result = capped ? 'partial' : recallResult(ratio)
+  const result = recallResult(ratio)
   const showFullAnswer = !withHints || phase === 'gaveUp'
   const record = { result, ratio, response: { typed, ticked, gaveUp: phase === 'gaveUp', hintsUsed: hintLevel } }
 
@@ -263,7 +260,6 @@ export default function RecallStage({
             detail={[
               phase === 'gaveUp' ? null : t('stages.recall.score', { count, total, pct: Math.round(ratio * 100) }),
               hintLevel ? t('choice.hintsUsed', { count: hintLevel }) : null,
-              capped ? t('writeHints.capped') : null,
             ]
               .filter(Boolean)
               .join(' · ') || null}

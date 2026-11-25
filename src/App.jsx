@@ -615,6 +615,7 @@ export default function App() {
             onDelete={deleteQuestion}
             autoRead={!!settings.autoRead}
             readRate={settings.readRate ?? 1}
+            readFirst={settings.readFirst ?? true}
             onChangeSettings={(changes) =>
               // Saved for the bank; "don't go back on failure" also changes the running session's rules.
               updateActive((b) => ({

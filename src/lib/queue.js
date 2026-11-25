@@ -9,13 +9,15 @@ export const REVIEW_INTERVAL_DAYS = 3
 const TRANSITIONS = {
   1: { passed: { stage: 2, gap: 3 } },
   2: { passed: { stage: 3, gap: 4 }, partial: { stage: 2, gap: 2 }, failed: { stage: 1, gap: 2 } },
-  3: { passed: { stage: 4, gap: 6 }, partial: { stage: 3, gap: 3 }, failed: { stage: 2, gap: 2 } },
-  4: { passed: { mastered: true }, partial: { stage: 4, gap: 4 }, failed: { stage: 3, gap: 3 } },
+  3: { passed: { mastered: true }, partial: { stage: 3, gap: 3 }, failed: { stage: 2, gap: 2 } },
 }
 const REVIEW_FAIL_GAP = 3
 const DAY_MS = 24 * 60 * 60 * 1000
 
-export const ALL_STAGES = [1, 2, 3, 4]
+// 1 Copy, 2 Fill in, 3 With hints (read the answer first, then write it from memory). There used to be a
+// stage 4; data that still mentions it is moved to stage 3 when loaded (see storage.js).
+export const ALL_STAGES = [1, 2, 3]
+export const LAST_STAGE = 3
 // Session options chosen in the setup: which stages to do, and whether a failure sends the
 // question back a stage (default) or just repeats the same stage later (`noBacktrack`).
 export const DEFAULT_OPTIONS = { stages: ALL_STAGES, noBacktrack: false }
@@ -349,8 +351,10 @@ export function countStatuses(bank, progress, topics = null) {
 
 export function summarizeSession(session, bank) {
   const byKey = new Map(bank.map((q) => [q.key, q]))
+  // Mastered in this session: passed at the session's last stage (that is what masters a question).
+  const lastStage = optionsOf(session).stages.at(-1)
   const masteredKeys = [
-    ...new Set(session.log.filter((l) => l.stage === 4 && l.result === 'passed').map((l) => l.key)),
+    ...new Set(session.log.filter((l) => l.stage === lastStage && l.result === 'passed').map((l) => l.key)),
   ].filter((k) => byKey.has(k))
   const misses = new Map()
   const byTopic = new Map()

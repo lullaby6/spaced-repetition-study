@@ -3,6 +3,7 @@ import { useI18n } from '../i18n.jsx'
 import { ACCEPTED_EXTENSIONS } from '../lib/bank.js'
 import StatusBar from '../components/StatusBar.jsx'
 import Tooltip from '../components/Tooltip.jsx'
+import GitHubLink from '../components/GitHubLink.jsx'
 
 function WarningsList({ warnings }) {
   const { t } = useI18n()
@@ -265,6 +266,10 @@ export default function HomeScreen({
           {deletedBanksButton}
         </div>
       )}
+
+      <div className="flex justify-center pt-2">
+        <GitHubLink className="btn btn-ghost btn-sm opacity-70 hover:opacity-100" />
+      </div>
     </div>
   )
 }

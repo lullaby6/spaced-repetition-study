@@ -6,11 +6,11 @@ import MarkedText from './MarkedText.jsx'
 // `stages` are the stages enabled in the session: the label shows the position among them
 // ("Stage 2 of 3"), so it stays right when some stages are turned off.
 // `titleHighlight` ({ sentence, word } ranges in the question text) marks what the voice is saying.
-export default function QuestionCard({ question, stage, stages = [1, 2, 3, 4], badges = null, titleHighlight = null, children }) {
+export default function QuestionCard({ question, stage, stages = [1, 2, 3], badges = null, titleHighlight = null, children }) {
   const { t } = useI18n()
   const position = stages.indexOf(stage)
   const n = position >= 0 ? position + 1 : stage
-  const total = position >= 0 ? stages.length : 4
+  const total = position >= 0 ? stages.length : 3
   return (
     <article className="card border border-base-300 bg-base-100 shadow-sm">
       <div className="card-body gap-4 p-4 sm:p-6">

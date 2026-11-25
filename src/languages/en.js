@@ -11,10 +11,14 @@ export default {
   nav: { label: 'Sections', home: 'Home', progress: 'Progress', data: 'Data', help: 'Help' },
   common: { cancel: 'Cancel', close: 'Close', back: 'Back', confirm: 'Confirm', save: 'Save' },
   stage: {
-    names: { 1: 'Copy', 2: 'Fill in', 3: 'With hints', 4: 'No help' },
+    names: { 1: 'Copy', 2: 'Fill in', 3: 'With hints' },
     label: 'Stage {n} of {total} · {name}',
   },
   result: { passed: 'Passed', partial: 'Partly', failed: "Didn't know it", skipped: 'Skipped' },
+  github: {
+    label: 'View on GitHub',
+    help: 'The source code is open: you can look at it, report problems or suggest improvements on GitHub.',
+  },
   sessionSettings: {
     title: 'Session settings',
     saved: 'Changes apply right away (from the next exercise) and are saved for this bank.',
@@ -252,7 +256,7 @@ export default {
     examMode_choice: 'Multiple choice',
     examModeHelp_choice: 'Pick the right answer among several. You can ask for hints: first the hints, then the key words and finally ruling out options.',
     examMode_write: 'Write with no help',
-    examModeHelp_write: 'Like stage 4: write what you remember, then tick the key points you included. If you get stuck, you can ask for hints.',
+    examModeHelp_write: 'Write what you remember, without seeing the answer first, then tick the key points you included. If you get stuck, you can ask for hints.',
     topics: 'Topics',
     all: 'All',
     none: 'None',
@@ -262,11 +266,12 @@ export default {
     newPerSession: 'New questions per session',
     maxLearning: 'Questions at once',
     stages: 'Stages',
-    stage4Note: '(the hardest)',
+    readFirst: 'Show the answer until you are ready',
+    readFirstHelp: 'Stage 3 starts by showing the answer; when you press "I\'m ready" it is hidden and you write it. Off: you write it straight away, without seeing it.',
     stagesNone: 'Pick at least one stage.',
     autoRead: 'Read each question aloud',
     autoReadHelp:
-      'Every time an exercise shows up, the voice reads the question (and the answer in Copy and No help). The speed is also used by the "Listen" button.',
+      'Every time an exercise shows up, the voice reads the question (and the answer in Copy and With hints). The speed is also used by the "Listen" button.',
     noBacktrack: "Don't go back on failure",
     noBacktrackHelp: 'If it goes badly, you repeat the same stage later instead of going back to the previous one.',
     replacesSession: "Starting a new session replaces the current one (each question's progress is kept).",
@@ -436,20 +441,19 @@ export default {
   help: {
     title: 'What is this?',
     intro:
-      "A website to memorize exam answers. Instead of rereading, you practice recalling them: each question goes through four exercises, from easier to harder, and comes back at the right time depending on how you did (spaced repetition). Everything is saved in your browser.",
+      "A website to memorize exam answers. Instead of rereading, you practice recalling them: each question goes through three exercises, from easier to harder, and comes back at the right time depending on how you did (spaced repetition). Everything is saved in your browser.",
     startTitle: 'How to start',
     start1: "Build your question bank. If you don't have one, ask an AI to make it from your PDF, book or notes with the",
     start2: 'Save it as a .md file (.txt or .pdf also work) and upload it on the home screen. You can keep several banks, e.g. one per subject.',
     start3: 'Press "Start", choose the topics and how many new questions you want per session.',
     start4: 'Answer each exercise. When a question passes the last stage it is mastered; afterwards it is reviewed now and then so you do not forget it.',
     goHome: 'Go to home',
-    stagesTitle: 'The four stages',
+    stagesTitle: 'The three stages',
     stagesIntro:
-      'Each question moves through these stages. If it goes well, it moves up; so-so, you repeat it; badly, it goes down (unless you turn on "Don\'t go back on failure"). When setting up the session you choose which stages to do; stage 4 is off by default.',
+      'Each question moves through these stages. If it goes well, it moves up; so-so, you repeat it; badly, it goes down (unless you turn on "Don\'t go back on failure"). Passing the last one masters the question. When setting up the session you can choose which stages to do.',
     stage1: 'you read the answer and type it once. You can listen to it aloud or hide it to type it from memory.',
     stage2: 'you fill in the missing key words of a summary. If you get stuck, ask for a hint: first the first letter, then the word.',
-    stage3: 'you write the answer in your own words, with some hints in view, and then tick the key points you included.',
-    stage4: "first you read the full answer; when you're ready it is hidden and you write it from memory, with no help in view. If you get stuck you can ask for up to 4 hints, but using any brings the question back to stage 4 instead of mastering it. It is off by default: turn it on when setting up the session.",
+    stage3: "first you read the full answer (you can turn this off when setting up the session); when you're ready it is hidden and you write it from memory in your own words, with some hints in view. Then you tick the key points you included.",
     queue:
       'Only a few questions are learned at once (4 by default, you can change it when setting up the session): they come and go mixed together and, when one is mastered, the next one comes in. With "Back" you can look at the exercises you already did.',
     examTitle: 'Mock exam',
@@ -481,7 +485,6 @@ export default {
     keywords: 'Key words',
     starts: 'How each point starts',
     startsTitle: 'How the key points start:',
-    capped: 'You used hints: it comes back at stage 4 so you can do it with no help',
     summary: 'Half-covered summary',
     summaryTitle: 'Summary of the answer (key words showing only their first letter):',
   },
@@ -512,21 +515,21 @@ export default {
     maxLearning:
       'How many questions are learned at the same time. They come and go mixed together until mastered, and only then a new one comes in. Fewer at once = they repeat more often and are easier to remember; more = more variety.',
     stage:
-      'Every question goes through 4 stages: 1 Copy the answer, 2 Fill in the blanks, 3 Recall it with hints and 4 Recall it with no help. If it goes well it moves up, if it goes so-so you repeat the same one, and if it goes badly it goes back one.',
+      'Every question goes through 3 stages: 1 Copy the answer, 2 Fill in the blanks and 3 Read it, then write it from memory, with hints. If it goes well it moves up, if it goes so-so you repeat the same one, and if it goes badly it goes back one.',
     status:
-      "New: not studied yet. Learning: going through the 4 stages. To review: it was mastered but you failed a review. Mastered: you passed the last stage (4, or whichever is your last); it's reviewed the next day and then every 3 days.",
+      "New: not studied yet. Learning: going through the stages. To review: it was mastered but you failed a review. Mastered: you passed the last stage; it's reviewed the next day and then every 3 days.",
     correct: 'Exercises passed out of exercises done with that question.',
     resetLast: '"Reset the last one" makes the question you studied most recently new again. Press it several times to undo your progress one question at a time.',
     queue:
       'Exercises done: the ones you already answered in this session. In queue: the ones left. Each question comes back several times, once per stage, mixed with the others.',
     hardest: 'The questions you missed the most in this session: a miss counts double a "partly".',
     weakTopics: 'The topics with the highest share of exercises not passed in this session.',
-    review: 'Reviews the questions you already mastered at stage 4 (no help). The number shows how many are due.',
+    review: 'Reviews the questions you already mastered at the last stage. The number shows how many are due.',
     exam: 'Random questions, like an exam: multiple choice or written with no help. You choose how many. It does not change your progress.',
     stages:
-      'Which exercises each question goes through. Stages that are off are skipped: a question is mastered when you pass the last stage that is on. Stage 4 (no help) is off by default; turn it on for the full challenge.',
+      'Which exercises each question goes through. Stages that are off are skipped: a question is mastered when you pass the last stage that is on.',
     autoRead:
-      'Every exercise that shows up is read aloud, even the same question at another stage. The question is read and, in the stages that show the full answer (1 Copy and 4 No help, while you read it), the answer too. In Fill in and With hints only the question is read, so the answer is not given away.',
+      'Every exercise that shows up is read aloud, even the same question at another stage. The question is read and, in the stages that show the full answer (1 Copy and 3 With hints, while you read it), the answer too. In Fill in only the question is read, so the answer is not given away.',
     noBacktrack:
       'Normally, if a stage goes badly, the question goes back to the previous stage. With this option it stays at the same stage and you repeat it later, so you keep moving forward even when you fail.',
     examOrder:

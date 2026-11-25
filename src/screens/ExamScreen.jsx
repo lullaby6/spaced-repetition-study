@@ -9,7 +9,7 @@ import ChoiceStage from '../components/stages/ChoiceStage.jsx'
 import Tooltip from '../components/Tooltip.jsx'
 import SessionOverview, { examOverviewRows } from '../components/SessionOverview.jsx'
 
-// Mock exam, without touching progress. exam.mode is 'write' (stage 4: recall with no help) or
+// Mock exam, without touching progress. exam.mode is 'write' (recall with nothing shown first) or
 // 'choice' (multiple choice; exam.options[key] are the option keys for each question).
 export default function ExamScreen({
   exam,
@@ -114,7 +114,7 @@ export default function ExamScreen({
             {isChoice ? (
               <ChoiceStage question={question} optionKeys={exam.options[question.key]} bankByKey={bankByKey} onDone={finish} />
             ) : (
-              <Exercise question={question} stage={4} outcomeFor={null} onDone={finish} />
+              <Exercise question={question} stage="exam" outcomeFor={null} onDone={finish} />
             )}
           </QuestionCard>
         </HotkeysActiveContext.Provider>

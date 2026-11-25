@@ -31,6 +31,7 @@ export default function StudyScreen({
   onOpenDeleted,
   autoRead = false,
   readRate = 1,
+  readFirst = true,
   onChangeSettings,
 }) {
   const { t, lang } = useI18n()
@@ -45,7 +46,13 @@ export default function StudyScreen({
   useEffect(() => {
     if (!autoRead || !question) return undefined
     // Same text as stage 1's Listen button, so that button can pause/resume this reading.
-    const text = item.stage === 1 ? copySpokenText(question) : item.stage === 4 ? `${question.question} ${question.answer}` : question.question
+    // Stage 3 starts by showing the answer (when "read first" is on), so it is read too; otherwise only the question.
+    const text =
+      item.stage === 1
+        ? copySpokenText(question)
+        : item.stage === 3 && readFirst
+          ? `${question.question} ${question.answer}`
+          : question.question
     speak(text, guessLanguage(question.answer, lang))
     return stopSpeaking
     // Only when a new exercise shows up (the counter changes on every step).
@@ -148,6 +155,7 @@ export default function StudyScreen({
               outcomeFor={(result) => describeOutcome(item, result, session)}
               readRate={readRate}
               speech={speech}
+              readFirst={readFirst}
               onDone={(record) => {
                 setPosition(null)
                 onResult(record)

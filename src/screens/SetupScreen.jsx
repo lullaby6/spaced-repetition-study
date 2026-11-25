@@ -15,6 +15,7 @@ export default function SetupScreen({ purpose, topics, topicCounts, settings, ha
   const [maxLearning, setMaxLearning] = useState(settings.maxLearning ?? 4)
   const [stages, setStages] = useState(() => new Set(settings.stages ?? [1, 2, 3]))
   const [noBacktrack, setNoBacktrack] = useState(!!settings.noBacktrack)
+  const [readFirst, setReadFirst] = useState(settings.readFirst ?? true)
   const [autoRead, setAutoRead] = useState(settings.autoRead ?? true)
   const [readRate, setReadRate] = useState(READ_RATES.includes(settings.readRate) ? settings.readRate : 1)
   const canSpeak = typeof window !== 'undefined' && !!window.speechSynthesis
@@ -54,8 +55,9 @@ export default function SetupScreen({ purpose, topics, topicCounts, settings, ha
       order,
       newPerSession: Math.max(1, Math.min(500, Number(newPerSession) || 15)),
       maxLearning: Math.max(1, Math.min(50, Math.floor(Number(maxLearning)) || 4)),
-      stages: [1, 2, 3, 4].filter((s) => stages.has(s)),
+      stages: [1, 2, 3].filter((s) => stages.has(s)),
       noBacktrack,
+      readFirst,
       autoRead,
       readRate,
       examMode,
@@ -176,7 +178,7 @@ export default function SetupScreen({ purpose, topics, topicCounts, settings, ha
                 {t('setup.stages')} <InfoTip text={t('info.stages')} />
               </legend>
               <div className="grid gap-1 sm:grid-cols-2">
-                {[1, 2, 3, 4].map((stage) => (
+                {[1, 2, 3].map((stage) => (
                   <label key={stage} className="flex min-h-11 cursor-pointer items-center gap-3 rounded-box px-2 hover:bg-base-200">
                     <input
                       type="checkbox"
@@ -186,11 +188,19 @@ export default function SetupScreen({ purpose, topics, topicCounts, settings, ha
                     />
                     <span>
                       {stage}. {t(`stage.names.${stage}`)}
-                      {stage === 4 && <span className="ml-1 text-sm opacity-60">{t('setup.stage4Note')}</span>}
                     </span>
                   </label>
                 ))}
               </div>
+              {stages.has(3) && (
+                <label className="ml-2 flex cursor-pointer items-start gap-3 rounded-box border-l-2 border-primary/40 py-1 pl-3">
+                  <input type="checkbox" className="toggle toggle-primary toggle-sm mt-0.5" checked={readFirst} onChange={(e) => setReadFirst(e.target.checked)} />
+                  <span>
+                    <span className="text-sm font-medium">{t('setup.readFirst')}</span>
+                    <span className="block text-sm opacity-70">{t('setup.readFirstHelp')}</span>
+                  </span>
+                </label>
+              )}
               {stages.size === 0 && <p className="text-sm text-error">{t('setup.stagesNone')}</p>}
             </fieldset>
 

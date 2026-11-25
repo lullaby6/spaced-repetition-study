@@ -7,4 +7,7 @@ import tailwindcss from '@tailwindcss/vite'
 export default defineConfig({
   base: process.env.VITE_BASE || './',
   plugins: [react(), tailwindcss()],
+  // `npm run dev` and `npm run preview` both start on port 3000.
+  server: { port: 3000 },
+  preview: { port: 3000 },
 })

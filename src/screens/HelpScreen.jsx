@@ -1,4 +1,5 @@
 import { useI18n } from '../i18n.jsx'
+import GitHubLink from '../components/GitHubLink.jsx'
 
 export const CONTACT_EMAIL = 'lullaby6.t@gmail.com'
 
@@ -34,7 +35,7 @@ export default function HelpScreen({ onShowAiPrompt, onStart }) {
       <Section title={t('help.stagesTitle')}>
         <p>{t('help.stagesIntro')}</p>
         <ol className="space-y-2">
-          {[1, 2, 3, 4].map((n) => (
+          {[1, 2, 3].map((n) => (
             <li key={n} className="flex gap-3">
               <span className="badge badge-primary badge-soft shrink-0">{n}</span>
               <span>
@@ -93,6 +94,10 @@ export default function HelpScreen({ onShowAiPrompt, onStart }) {
             {CONTACT_EMAIL}
           </a>
         </p>
+        <p className="text-sm opacity-80">{t('github.help')}</p>
+        <div>
+          <GitHubLink />
+        </div>
       </Section>
     </div>
   )
